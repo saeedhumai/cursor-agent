@@ -158,7 +158,7 @@ async def main():
     
     # Create agent with custom system prompt
     coding_tutor = create_agent(
-        provider='claude',
+    provider='claude',
         model='claude-3-5-sonnet-latest',
         system_prompt=custom_system_prompt
     )
@@ -186,41 +186,6 @@ This example creates a specialized coding tutor agent with a custom personality 
 - Algorithm optimization specialist (improving performance)
 
 ### Interactive Mode
-
-```python
-import asyncio
-from cursor_agent.agent import create_agent
-
-async def main():
-    # Create an agent
-    agent = create_agent(provider='claude')
-    agent.register_default_tools()
-    
-    # Initial task description
-    query = "Create a simple web scraper that extracts headlines from a news website"
-    
-    # Initialize user context (optional)
-    user_info = {
-        "workspace_path": "/your/project/path",
-        "os": "darwin",  # or "win32", "linux", etc.
-    }
-    
-    # For programmatic use, you can implement a simple interactive session like this:
-    response = await agent.chat(query, user_info)
-    print(response)
-    
-    # The agent will automatically work through the task in steps
-    # When it needs user input, it will explicitly ask for it
-    if "I need more information" in response:
-        next_query = input("Please provide additional details: ")
-        response = await agent.chat(next_query, user_info)
-        print(response)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-For a full implementation with automatic continuation, intelligent prompting, and proper context management, use the `run_agent_interactive` function provided by the library:
 
 ```python
 from cursor_agent.main import run_agent_interactive
