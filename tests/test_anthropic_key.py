@@ -20,7 +20,7 @@ else:
 api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not api_key:
     print("Error: ANTHROPIC_API_KEY environment variable not set.")
-    pytest.skip("ANTHROPIC_API_KEY environment variable not set")
+    pytest.skip("ANTHROPIC_API_KEY environment variable not set", allow_module_level=True)
 
 print(f"API key found: {api_key[:10]}...{api_key[-5:]}")
 print(f"API key length: {len(api_key)}")
