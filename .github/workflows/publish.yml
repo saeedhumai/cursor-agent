@@ -43,6 +43,30 @@ jobs:
       run: python -m build
       
     # Always publish to Test PyPI if manually triggered
+    - name: Verify TestPyPI Token
+      if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: |
+        # Check if token is present and has correct format
+        if [[ -z "${TWINE_PASSWORD}" ]]; then
+          echo "ERROR: TestPyPI token is empty. Please add a valid TEST_PYPI_API_TOKEN secret."
+          exit 1
+        fi
+        
+        # Masked output to check general format without revealing token
+        TOKEN_PREFIX=$(echo $TWINE_PASSWORD | cut -c1-5)
+        TOKEN_LENGTH=${#TWINE_PASSWORD}
+        
+        echo "Token prefix: ${TOKEN_PREFIX}** (masked)"
+        echo "Token length: ${TOKEN_LENGTH} characters"
+        
+        if [[ $TOKEN_LENGTH -lt 40 ]]; then
+          echo "WARNING: Token appears too short. TestPyPI tokens are typically longer."
+        fi
+        
+    # Always publish to Test PyPI if manually triggered
     - name: Publish to Test PyPI (Manual Trigger)
       if: github.event_name == 'workflow_dispatch'
       env:
@@ -75,6 +99,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
+        # Note: PyPI uses different tokens than TestPyPI - make sure you're using the right one
         twine upload --verbose dist/*
         
     - name: Upload artifacts to release
