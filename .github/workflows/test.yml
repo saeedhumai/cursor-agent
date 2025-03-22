@@ -38,8 +38,8 @@ jobs:
         # Use -k "not" expressions to skip tests that require API keys or file system access
         pytest -xvs --cov=agent tests/ --cov-report=xml -k "not anthropic and not openai and not fs_tools"
         
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: true 
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v3
+    #   with:
+    #     file: ./coverage.xml
+    #     fail_ci_if_error: true 
