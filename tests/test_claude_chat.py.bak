@@ -20,8 +20,8 @@ else:
     # Don't exit here, we'll skip tests that need API keys
 
 
-@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"),
-                  reason="ANTHROPIC_API_KEY environment variable not set")
+@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), 
+                reason="ANTHROPIC_API_KEY environment variable not set")
 @pytest.mark.anthropic
 async def test_claude_chat() -> None:
     """Test the Claude agent's chat functionality."""

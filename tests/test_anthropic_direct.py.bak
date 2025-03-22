@@ -28,7 +28,7 @@ if api_key:
 
 
 @pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), 
-                  reason="ANTHROPIC_API_KEY environment variable not set")
+                reason="ANTHROPIC_API_KEY environment variable not set")
 @pytest.mark.anthropic
 async def test_anthropic_direct():
     try:
