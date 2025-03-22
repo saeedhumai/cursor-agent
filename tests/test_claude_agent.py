@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import pytest
 from typing import Any, Callable, Dict, Optional, ClassVar, Coroutine, TypeVar
 
 from agent.claude_agent import ClaudeAgent
@@ -28,6 +29,7 @@ def async_test(coro: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., T]:
     return wrapper
 
 
+@pytest.mark.anthropic
 class TestClaudeAgent(unittest.TestCase):
     """Test the Claude agent functionality with real API."""
 
