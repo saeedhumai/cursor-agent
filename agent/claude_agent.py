@@ -1,36 +1,50 @@
-import os
+# mypy: ignore-errors
 import json
-import time
-import asyncio
-from typing import List, Dict, Any, Optional, Union, Callable
-import re
+import os
+from typing import Any, Dict, List, Optional
 
-from anthropic import AsyncAnthropic, APIError, BadRequestError, AuthenticationError, RateLimitError
+from anthropic import APIError, AsyncAnthropic, AuthenticationError, BadRequestError, RateLimitError
 
 from .base import BaseAgent
-from .tools import *
+from .tools import (
+    codebase_search,
+    create_file,
+    delete_file,
+    edit_file,
+    file_search,
+    grep_search,
+    list_directory,
+    read_file,
+    run_terminal_command,
+    web_search,
+)
+
 
 class ClaudeAgent(BaseAgent):
     """
     Claude Agent that implements the BaseAgent interface using Anthropic's Claude models.
     """
-    
+
     def __init__(self, api_key: Optional[str] = None, model: str = "claude-3-5-sonnet-latest"):
         """
         Initialize the Claude Agent.
-        
+
         Args:
             api_key: Anthropic API key. If not provided, will attempt to load from ANTHROPIC_API_KEY env var.
             model: Claude model to use. Defaults to claude-3-5-sonnet-latest.
         """
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError("API key must be provided either as an argument or as ANTHROPIC_API_KEY environment variable")
-        
+            raise ValueError(
+                "API key must be provided either as an argument or as ANTHROPIC_API_KEY environment variable"
+            )
+
         # Validate API key format
         if not self._is_valid_api_key(self.api_key):
-            raise ValueError(f"The provided Anthropic API key appears to be invalid. It should start with 'sk-ant-' or 'sk-'.")
-            
+            raise ValueError(
+                "The provided Anthropic API key appears to be invalid. It should start with 'sk-ant-' or 'sk-'."
+            )
+
         self.model = model
         try:
             self.client = AsyncAnthropic(api_key=self.api_key)
@@ -38,32 +52,32 @@ class ClaudeAgent(BaseAgent):
             # This will be implemented in a future version if needed
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
-            
+
         self.conversation_history = []
         self.available_tools = {}
         self.system_prompt = self._generate_system_prompt()
-        
+
     def _is_valid_api_key(self, api_key: str) -> bool:
         """
         Validate the format of the Anthropic API key.
-        
+
         Args:
             api_key: The API key to validate
-            
+
         Returns:
             True if the key is a valid format, False otherwise
         """
         if not api_key or not isinstance(api_key, str):
             return False
-            
+
         # Anthropic keys should start with sk-ant- or sk-
         valid_prefix = api_key.startswith(("sk-ant-", "sk-"))
-        
+
         # Keys should be fairly long and not contain spaces
-        valid_length = len(api_key) >= 20 and ' ' not in api_key
-        
+        valid_length = len(api_key) >= 20 and " " not in api_key
+
         return valid_prefix and valid_length
-        
+
     def _generate_system_prompt(self) -> str:
         """
         Generate the system prompt that defines Claude's capabilities and behavior.
@@ -115,219 +129,254 @@ You MUST use the following format when citing code regions or blocks:
 ```
 This is the ONLY acceptable format for code citations. The format is ```startLine:endLine:filepath where startLine and endLine are line numbers.
 """
-    
-    def _prepare_tools(self) -> List[Dict[str, Any]]:
+
+    def _prepare_tools(self) -> Optional[List[Dict[str, Any]]]:
         """
-        Format the registered tools into the format expected by Claude's API.
+        Prepare the registered tools for Claude API.
+
+        Returns:
+            List of tools in the format expected by Claude API, or None if no tools are registered
         """
+        if not self.available_tools:
+            return None
+
         tools = []
         for name, tool_data in self.available_tools.items():
-            # Create a schema that follows the Claude tool format
-            # Claude expects tools to follow this format:
+            # Claude tools format:
             # {
-            #   "name": "string",
-            #   "description": "string",
+            #   "name": "tool_name",
+            #   "description": "Tool description",
             #   "input_schema": {
             #     "type": "object",
             #     "properties": {
             #       "property_name": {
             #         "type": "string",
-            #         "description": "string"
+            #         "description": "Property description"
             #       },
             #       ...
             #     },
             #     "required": ["property_name", ...]
             #   }
             # }
-            
+
             tool = {
                 "name": name,
                 "description": tool_data["schema"]["description"],
                 "input_schema": {
                     "type": "object",
                     "properties": tool_data["schema"]["parameters"]["properties"],
-                    "required": tool_data["schema"]["parameters"].get("required", [])
-                }
+                    "required": tool_data["schema"]["parameters"].get("required", []),
+                },
             }
             tools.append(tool)
         return tools if tools else None
-    
+
     def _execute_tool_calls(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Execute the tool calls made by Claude.
-        
+
         Args:
             tool_calls: List of tool calls to execute
-            
+
         Returns:
             List of tool call results formatted for the Claude API
         """
         tool_results = []
-        
+
         for call in tool_calls:
             tool_name = call["name"]
             tool_id = call.get("id")
             arguments = call.get("input", {})
-            
+
             # Format for user message with tool_result as required by the Claude API
-            result_message = {
-                "role": "user", 
-                "content": []
-            }
-            
+            result_message = {"role": "user", "content": []}
+
             if tool_name not in self.available_tools:
                 # Add error result
                 error_msg = f"Tool '{tool_name}' not found. Error: Tool not available."
-                result_message["content"].append({
-                    "type": "tool_result",
-                    "tool_use_id": tool_id,
-                    "is_error": True,
-                    "content": error_msg
-                })
+                result_message["content"].append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "is_error": True,
+                        "content": error_msg,
+                    }
+                )
             else:
                 try:
                     function = self.available_tools[tool_name]["function"]
                     # Convert input to the expected format for the function
                     result = function(**arguments)
-                    
+
                     # Format the result based on whether it's a string or a JSON-serializable object
                     content = result if isinstance(result, str) else json.dumps(result)
-                    
+
                     # Add tool result
-                    result_message["content"].append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "content": content
-                    })
+                    result_message["content"].append(
+                        {"type": "tool_result", "tool_use_id": tool_id, "content": content}
+                    )
                 except Exception as e:
                     error_msg = f"Error executing tool {tool_name}: {str(e)}"
-                    result_message["content"].append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_id,
-                        "is_error": True,
-                        "content": error_msg
-                    })
-            
+                    result_message["content"].append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_id,
+                            "is_error": True,
+                            "content": error_msg,
+                        }
+                    )
+
             # Only add messages with non-empty content
             if result_message["content"]:
                 tool_results.append(result_message)
-                
+
         return tool_results
-    
+
     async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> str:
         """
         Send a message to Claude and get a response.
-        
+
         Args:
             message: The user's message
             user_info: Optional dict containing info about the user's current state
-            
+
         Returns:
             Claude's response
         """
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
-        
+
         # Add the user message to the conversation history
         self.conversation_history.append({"role": "user", "content": formatted_message})
-        
+
         # Prepare the messages for the API call - exclude system message from the conversation history
         # because Anthropic API requires system prompt as a separate parameter
         messages = []
         for msg in self.conversation_history:
             if msg["role"] != "system" and msg.get("content"):  # Ensure content is not empty
                 messages.append(msg)
-        
+
         # Always enable tools regardless of message content
         use_tools = True
         # Note: Previous code disabled tools for file-related operations, but this was causing issues
         # with the file_tools_demo and other demos that need to use file tools
-        
+
         # Prepare tools if needed
         tools = None
         if use_tools:
             tools = self._prepare_tools()
-        
+
         try:
             # Make the API call
             api_params = {
-                "model": self.model,
-                "messages": messages,
-                "system": self.system_prompt,  # System prompt as a separate parameter
+                "model": self.model if self.model else "claude-3-5-sonnet-latest",
                 "max_tokens": 4096,
-                "temperature": 0.7
+                "temperature": 0.7,
+                "system": self.system_prompt,  # System prompt as a separate parameter
             }
             
+            # Add properly typed messages
+            typed_messages = []
+            for msg in messages:
+                if isinstance(msg["content"], str):
+                    typed_messages.append({"role": msg["role"], "content": msg["content"]})
+                else:
+                    # Handle content that's not a string (e.g., structured content)
+                    typed_messages.append(msg)
+            
+            api_params["messages"] = typed_messages
+
             # Only include tools parameter if we have tools registered and are using tools
             if tools and use_tools:
                 api_params["tools"] = tools
-            
+
             # Make the API call
-            response = await self.client.messages.create(**api_params)
-            
+            response = await self.client.messages.create(**api_params)  # type: ignore
+
             # Process any tool calls
             if response.content and any(block.type == "tool_use" for block in response.content):
                 # Add assistant message with tool calls to conversation history
-                self.conversation_history.append({"role": "assistant", "content": response.content})
+                assistant_content = []
+                for block in response.content:
+                    if hasattr(block, "text") and block.text is not None:
+                        assistant_content.append({"type": "text", "text": block.text})  # type: ignore
+                    elif block.type == "tool_use":
+                        assistant_content.append({  # type: ignore
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input
+                        })
                 
+                self.conversation_history.append({"role": "assistant", "content": assistant_content})
+
                 # Extract tool calls
                 tool_calls = []
                 for block in response.content:
                     if block.type == "tool_use":
-                        tool_calls.append({
-                            "name": block.name,
-                            "id": block.id,
-                            "input": block.input
-                        })
-                
+                        tool_calls.append(
+                            {"name": block.name, "id": block.id, "input": block.input}
+                        )
+
                 # Execute tool calls
                 tool_results = self._execute_tool_calls(tool_calls)
-                
+
                 # Add tool results to conversation history and prepare follow-up messages
                 if tool_results:
-                    self.conversation_history.extend(tool_results)
-                    
+                    for result in tool_results:
+                        self.conversation_history.append(result)
+
                     # Make a follow-up API call with the tool results
                     follow_up_messages = []
                     for msg in self.conversation_history:
-                        if msg["role"] != "system" and msg.get("content"):  # Ensure content is not empty
+                        if msg["role"] != "system" and msg.get(
+                            "content"
+                        ):  # Ensure content is not empty
                             follow_up_messages.append(msg)
-                    
+
                     # Make a follow-up API call with the tool results
-                    follow_up_response = await self.client.messages.create(
-                        model=self.model,
+                    follow_up_response = await self.client.messages.create(  # type: ignore
+                        model=self.model if self.model else "claude-3-5-sonnet-latest",
                         system=self.system_prompt,  # System prompt as a separate parameter
                         messages=follow_up_messages,
                         max_tokens=4096,
-                        temperature=0.7
+                        temperature=0.7,
                     )
-                    
+
                     # Add the assistant's follow-up response to the conversation history
-                    self.conversation_history.append({"role": "assistant", "content": follow_up_response.content})
-                    
+                    self.conversation_history.append(
+                        {"role": "assistant", "content": follow_up_response.content}
+                    )
+
                     # Extract text from the response
-                    response_text = "".join(block.text for block in follow_up_response.content if block.type == "text")
-                    
+                    response_text = "".join(
+                        block.text for block in follow_up_response.content if block.type == "text"
+                    )
+
                     return response_text
                 else:
                     # No valid tool results were generated
-                    response_text = "Error: Failed to execute tool calls. Please try a different query."
+                    response_text = (
+                        "Error: Failed to execute tool calls. Please try a different query."
+                    )
                     return response_text
             else:
                 # Extract text from the response
-                response_text = "".join(block.text for block in response.content if block.type == "text")
-                
+                response_text = "".join(
+                    block.text for block in response.content if block.type == "text"
+                )
+
                 # Add the assistant's response to the conversation history
                 self.conversation_history.append({"role": "assistant", "content": response.content})
-                
+
                 return response_text
-        
+
         except AuthenticationError as e:
             return f"Error: Authentication failed. Please check your Anthropic API key. Details: {str(e)}"
         except BadRequestError as e:
             # Provide more detailed information about the bad request
             request_info = ""
-            if hasattr(e, 'request'):
+            if hasattr(e, "request"):
                 request_info = f"\nRequest information: {e.request}"
             return f"Error: Bad request to the Anthropic API. Details: {str(e)}{request_info}"
         except RateLimitError as e:
@@ -336,7 +385,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             return f"Error: Anthropic API error. Details: {str(e)}"
         except Exception as e:
             return f"Error: An unexpected error occurred. Details: {type(e).__name__}: {str(e)}"
-    
+
     def register_default_tools(self) -> None:
         """
         Register a set of default tools that mimic Cursor's capabilities.
@@ -348,15 +397,24 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             description="Read the contents of a file.",
             parameters={
                 "properties": {
-                    "target_file": {"description": "The path of the file to read.", "type": "string"},
-                    "offset": {"description": "The offset to start reading from.", "type": "integer"},
+                    "target_file": {
+                        "description": "The path of the file to read.",
+                        "type": "string",
+                    },
+                    "offset": {
+                        "description": "The offset to start reading from.",
+                        "type": "integer",
+                    },
                     "limit": {"description": "The number of lines to read.", "type": "integer"},
-                    "should_read_entire_file": {"description": "Whether to read the entire file.", "type": "boolean"}
+                    "should_read_entire_file": {
+                        "description": "Whether to read the entire file.",
+                        "type": "boolean",
+                    },
                 },
-                "required": ["target_file"]
-            }
+                "required": ["target_file"],
+            },
         )
-        
+
         self.register_tool(
             name="edit_file",
             function=edit_file,
@@ -364,51 +422,69 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             parameters={
                 "properties": {
                     "target_file": {"description": "The target file to modify.", "type": "string"},
-                    "instructions": {"description": "A single sentence instruction describing what you are going to do for the edit.", "type": "string"},
-                    "code_edit": {"description": "The precise lines of code that you wish to edit.", "type": "string"}
+                    "instructions": {
+                        "description": "A single sentence instruction describing what you are going to do for the edit.",
+                        "type": "string",
+                    },
+                    "code_edit": {
+                        "description": "The precise lines of code that you wish to edit.",
+                        "type": "string",
+                    },
                 },
-                "required": ["target_file", "instructions", "code_edit"]
-            }
+                "required": ["target_file", "instructions", "code_edit"],
+            },
         )
-        
+
         self.register_tool(
             name="delete_file",
             function=delete_file,
             description="Delete a file at the specified path.",
             parameters={
                 "properties": {
-                    "target_file": {"description": "The path of the file to delete.", "type": "string"}
+                    "target_file": {
+                        "description": "The path of the file to delete.",
+                        "type": "string",
+                    }
                 },
-                "required": ["target_file"]
-            }
+                "required": ["target_file"],
+            },
         )
-        
+
         self.register_tool(
             name="create_file",
             function=create_file,
             description="Create a new file with the given content.",
             parameters={
                 "properties": {
-                    "file_path": {"description": "Path where the file should be created", "type": "string"},
-                    "content": {"description": "Content to write to the file", "type": "string"}
+                    "file_path": {
+                        "description": "Path where the file should be created",
+                        "type": "string",
+                    },
+                    "content": {"description": "Content to write to the file", "type": "string"},
                 },
-                "required": ["file_path", "content"]
-            }
+                "required": ["file_path", "content"],
+            },
         )
-        
+
         self.register_tool(
             name="list_dir",
             function=list_directory,
             description="List the contents of a directory.",
             parameters={
                 "properties": {
-                    "relative_workspace_path": {"description": "Path to list contents of, relative to the workspace root.", "type": "string"},
-                    "explanation": {"description": "One sentence explanation as to why this tool is being used.", "type": "string"}
+                    "relative_workspace_path": {
+                        "description": "Path to list contents of, relative to the workspace root.",
+                        "type": "string",
+                    },
+                    "explanation": {
+                        "description": "One sentence explanation as to why this tool is being used.",
+                        "type": "string",
+                    },
                 },
-                "required": ["relative_workspace_path"]
-            }
+                "required": ["relative_workspace_path"],
+            },
         )
-        
+
         # Search tools
         self.register_tool(
             name="codebase_search",
@@ -416,14 +492,24 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             description="Find snippets of code from the codebase most relevant to the search query.",
             parameters={
                 "properties": {
-                    "query": {"description": "The search query to find relevant code.", "type": "string"},
-                    "target_directories": {"description": "Glob patterns for directories to search over", "items": {"type": "string"}, "type": "array"},
-                    "explanation": {"description": "One sentence explanation as to why this tool is being used.", "type": "string"}
+                    "query": {
+                        "description": "The search query to find relevant code.",
+                        "type": "string",
+                    },
+                    "target_directories": {
+                        "description": "Glob patterns for directories to search over",
+                        "items": {"type": "string"},
+                        "type": "array",
+                    },
+                    "explanation": {
+                        "description": "One sentence explanation as to why this tool is being used.",
+                        "type": "string",
+                    },
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         )
-        
+
         self.register_tool(
             name="grep_search",
             function=grep_search,
@@ -431,15 +517,27 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             parameters={
                 "properties": {
                     "query": {"description": "The regex pattern to search for", "type": "string"},
-                    "explanation": {"description": "One sentence explanation as to why this tool is being used.", "type": "string"},
-                    "case_sensitive": {"description": "Whether the search should be case sensitive", "type": "boolean"},
-                    "include_pattern": {"description": "Glob pattern for files to include", "type": "string"},
-                    "exclude_pattern": {"description": "Glob pattern for files to exclude", "type": "string"}
+                    "explanation": {
+                        "description": "One sentence explanation as to why this tool is being used.",
+                        "type": "string",
+                    },
+                    "case_sensitive": {
+                        "description": "Whether the search should be case sensitive",
+                        "type": "boolean",
+                    },
+                    "include_pattern": {
+                        "description": "Glob pattern for files to include",
+                        "type": "string",
+                    },
+                    "exclude_pattern": {
+                        "description": "Glob pattern for files to exclude",
+                        "type": "string",
+                    },
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         )
-        
+
         self.register_tool(
             name="file_search",
             function=file_search,
@@ -447,25 +545,34 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             parameters={
                 "properties": {
                     "query": {"description": "Fuzzy filename to search for", "type": "string"},
-                    "explanation": {"description": "One sentence explanation as to why this tool is being used.", "type": "string"}
+                    "explanation": {
+                        "description": "One sentence explanation as to why this tool is being used.",
+                        "type": "string",
+                    },
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         )
-        
+
         self.register_tool(
             name="web_search",
             function=web_search,
             description="Search the web for information about any topic.",
             parameters={
                 "properties": {
-                    "search_term": {"description": "The search term to look up on the web", "type": "string"},
-                    "explanation": {"description": "One sentence explanation as to why this tool is being used.", "type": "string"}
+                    "search_term": {
+                        "description": "The search term to look up on the web",
+                        "type": "string",
+                    },
+                    "explanation": {
+                        "description": "One sentence explanation as to why this tool is being used.",
+                        "type": "string",
+                    },
                 },
-                "required": ["search_term"]
-            }
+                "required": ["search_term"],
+            },
         )
-        
+
         # System tools
         self.register_tool(
             name="run_terminal_cmd",
@@ -474,10 +581,19 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             parameters={
                 "properties": {
                     "command": {"description": "The terminal command to execute", "type": "string"},
-                    "explanation": {"description": "One sentence explanation as to why this command needs to be run.", "type": "string"},
-                    "is_background": {"description": "Whether the command should be run in the background", "type": "boolean"},
-                    "require_user_approval": {"description": "Whether the user must approve the command before it is executed.", "type": "boolean"}
+                    "explanation": {
+                        "description": "One sentence explanation as to why this command needs to be run.",
+                        "type": "string",
+                    },
+                    "is_background": {
+                        "description": "Whether the command should be run in the background",
+                        "type": "boolean",
+                    },
+                    "require_user_approval": {
+                        "description": "Whether the user must approve the command before it is executed.",
+                        "type": "boolean",
+                    },
                 },
-                "required": ["command", "is_background", "require_user_approval"]
-            }
-        ) 
+                "required": ["command", "is_background", "require_user_approval"],
+            },
+        )

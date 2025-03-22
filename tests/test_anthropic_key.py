@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import os
 import sys
-import requests
-from dotenv import load_dotenv
 from pathlib import Path
 
+import requests
+from dotenv import load_dotenv
+
 # Load environment variables from .env file in parent directory
-env_path = Path(__file__).resolve().parent.parent / '.env'
+env_path = Path(__file__).resolve().parent.parent / ".env"
 if env_path.exists():
     print(f"Loading environment variables from {env_path}")
     load_dotenv(dotenv_path=env_path)
@@ -35,7 +36,7 @@ print("\nTesting API key with direct API calls to Anthropic for different models
 headers = {
     "x-api-key": api_key,
     "anthropic-version": "2023-06-01",
-    "content-type": "application/json"
+    "content-type": "application/json",
 }
 
 # Check if the API key is valid by testing it against different models
@@ -48,16 +49,14 @@ for model in models_to_try:
             json={
                 "model": model,
                 "max_tokens": 100,
-                "messages": [
-                    {"role": "user", "content": "Say hello in one short sentence."}
-                ]
+                "messages": [{"role": "user", "content": "Say hello in one short sentence."}],
             },
-            timeout=30
+            timeout=30,
         )
-        
+
         print(f"API response status code: {response.status_code}")
         print(f"API response: {response.text[:200]}...")
-        
+
         if response.status_code == 200:
             print(f"SUCCESS! Model {model} works with this API key.")
             break
@@ -68,8 +67,8 @@ for model in models_to_try:
             print(f"Model {model} not found. Trying next model...")
         else:
             print(f"Unexpected response code: {response.status_code}")
-        
+
     except Exception as e:
         print(f"Error during API test: {type(e).__name__}: {str(e)}")
 
-print("\nAPI key test completed!") 
+print("\nAPI key test completed!")

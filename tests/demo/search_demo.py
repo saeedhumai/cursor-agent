@@ -4,12 +4,13 @@ Search demo for the Claude agent.
 This script demonstrates the agent's capabilities for searching and understanding codebases.
 """
 
-import os
-import sys
 import asyncio
 import json
+import os
 import shutil
+import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Import from parent directory
@@ -20,30 +21,32 @@ from agent.claude_agent import ClaudeAgent
 
 # Import demo utilities
 from tests.demo.utils import (
-    print_user_input, 
-    print_assistant_response,
-    print_tool_call, 
-    print_tool_result,
-    print_system_message,
-    print_error,
-    print_separator,
+    Colors,
     clear_screen,
     create_user_info,
-    Colors
+    print_assistant_response,
+    print_error,
+    print_separator,
+    print_system_message,
+    print_tool_call,
+    print_tool_result,
+    print_user_input,
 )
 
 # Demo project directory
 DEMO_DIR = os.path.join(os.path.dirname(__file__), "demo_project")
 
+
 def setup_demo_project():
     """Set up a demo project with multiple files for the search demo."""
-    
+
     # Create the demo project directory if it doesn't exist
     os.makedirs(DEMO_DIR, exist_ok=True)
-    
+
     # Create main.py
     with open(os.path.join(DEMO_DIR, "main.py"), "w") as f:
-        f.write("""#!/usr/bin/env python3
+        f.write(
+            """#!/usr/bin/env python3
 \"\"\"
 Demo project main entry point.
 \"\"\"
@@ -85,12 +88,14 @@ def main():
 
 if __name__ == "__main__":
     main()
-""")
-    
+"""
+        )
+
     # Create models directory and user.py
     os.makedirs(os.path.join(DEMO_DIR, "models"), exist_ok=True)
     with open(os.path.join(DEMO_DIR, "models", "user.py"), "w") as f:
-        f.write("""#!/usr/bin/env python3
+        f.write(
+            """#!/usr/bin/env python3
 \"\"\"
 User model definition.
 \"\"\"
@@ -137,13 +142,15 @@ class User:
             self.preferences = {}
         self.preferences[key] = value
         logger.debug(f"Set preference {key} for user {self.username}")
-""")
-    
+"""
+        )
+
     # Create utils directory with logger.py and config.py
     os.makedirs(os.path.join(DEMO_DIR, "utils"), exist_ok=True)
-    
+
     with open(os.path.join(DEMO_DIR, "utils", "logger.py"), "w") as f:
-        f.write("""#!/usr/bin/env python3
+        f.write(
+            """#!/usr/bin/env python3
 \"\"\"
 Logging configuration for the application.
 \"\"\"
@@ -200,10 +207,12 @@ def setup_logger(log_level: str = "INFO", log_file: Optional[str] = None):
         security_logger.addHandler(security_handler)
     
     logging.info("Logger initialized")
-""")
-    
+"""
+        )
+
     with open(os.path.join(DEMO_DIR, "utils", "config.py"), "w") as f:
-        f.write("""#!/usr/bin/env python3
+        f.write(
+            """#!/usr/bin/env python3
 \"\"\"
 Configuration management for the application.
 \"\"\"
@@ -281,11 +290,13 @@ class Config:
         \"\"\"
         self._config[key] = value
         logger.debug(f"Set config {key}")
-""")
+"""
+        )
 
     # Create database.py
     with open(os.path.join(DEMO_DIR, "database.py"), "w") as f:
-        f.write("""#!/usr/bin/env python3
+        f.write(
+            """#!/usr/bin/env python3
 \"\"\"
 Database access layer for the application.
 \"\"\"
@@ -402,11 +413,13 @@ class Database:
         
         logger.debug(f"Search found {len(results)} users matching {criteria}")
         return results
-""")
+"""
+        )
 
     # Create a README.md file
     with open(os.path.join(DEMO_DIR, "README.md"), "w") as f:
-        f.write("""# Demo Project
+        f.write(
+            """# Demo Project
 
 This is a simple demo project showcasing a typical Python application structure.
 
@@ -426,22 +439,26 @@ python main.py
 ```
 
 Note: This is a demonstration project and does not have any real functionality.
-""")
+"""
+        )
 
     # Create an empty config.yaml file
     with open(os.path.join(DEMO_DIR, "config.yaml"), "w") as f:
-        f.write("""# Application configuration
+        f.write(
+            """# Application configuration
 database_url: "memory://demo"
 log_level: "INFO"
 debug_mode: false
 max_users: 100
-""")
-    
+"""
+        )
+
     print_system_message(f"Demo project created at {DEMO_DIR}")
+
 
 async def run_search_demo(agent, non_interactive=False):
     """Run the search demo scenario.
-    
+
     Args:
         agent: The initialized Claude agent
         non_interactive: If True, don't wait for user input between steps
@@ -450,114 +467,118 @@ async def run_search_demo(agent, non_interactive=False):
     print_system_message("SEARCH DEMO SCENARIO")
     print_system_message("We'll explore the demo project codebase with the Claude agent")
     print_separator()
-    
+
     # Create a context with our demo project files
     demo_files = []
     for root, _, files in os.walk(DEMO_DIR):
         for file in files:
             file_path = os.path.join(root, file)
             demo_files.append(file_path)
-    
+
     # Create user info with the demo project files
     user_info = create_user_info(demo_files)
-    
+
     # Enhance user_info with file contents
-    if 'open_files' not in user_info:
-        user_info['open_files'] = []
+    if "open_files" not in user_info:
+        user_info["open_files"] = []
     else:
         # Clear any existing open_files to avoid format issues
-        user_info['open_files'] = []
-    
+        user_info["open_files"] = []
+
     # Add file contents to the open_files info - use simple string paths
     # instead of complex dictionaries to avoid issues with the tools
-    user_info['open_files'] = demo_files
-    
+    user_info["open_files"] = demo_files
+
     # Add file_contents separately as a dictionary for reference
-    user_info['file_contents'] = {}
+    user_info["file_contents"] = {}
     for file_path in demo_files:
         try:
             if os.path.isfile(file_path):  # Ensure it's a file
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     content = f.read()
-                user_info['file_contents'][file_path] = content
+                user_info["file_contents"][file_path] = content
         except Exception as e:
             print_error(f"Error reading file {file_path}: {str(e)}")
-    
+
     # Demo queries
     demo_queries = [
         "How does the logging system work in this project?",
         "What operations can be performed on users in the database?",
         "Show me how the application handles configuration.",
-        "Explain the overall architecture of this project."
+        "Explain the overall architecture of this project.",
     ]
-    
+
     for i, query in enumerate(demo_queries):
         print_separator()
         print_user_input(query)
         print_system_message("Processing request...")
-        
+
         try:
             response = await agent.chat(query, user_info)
             print_assistant_response(response)
         except Exception as e:
             print_error(f"Error getting response: {str(e)}")
-        
+
         # If not the last query and in interactive mode, wait for user input
         if i < len(demo_queries) - 1 and not non_interactive:
             input(f"{Colors.GRAY}Press Enter to continue to the next question...{Colors.ENDC}")
         elif non_interactive:
             # Add a small delay for readability in non-interactive mode
             await asyncio.sleep(3)
-    
+
     print_separator()
     print_system_message("SEARCH DEMO COMPLETED")
 
+
 async def main(non_interactive=False):
     """Main entry point for the demo.
-    
+
     Args:
         non_interactive: When True, run in non-interactive mode without pauses
     """
     # Load environment variables
-    env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
+    env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
     if env_path.exists():
         print_system_message(f"Loading environment variables from {env_path}")
         load_dotenv(dotenv_path=env_path)
-    
+
     # Check if API key is present
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print_error("ANTHROPIC_API_KEY environment variable not set.")
         sys.exit(1)
-    
+
     try:
         clear_screen()
         print_separator()
         print_system_message("CODE SEARCH DEMO")
-        print_system_message("This demo showcases the Claude agent's ability to search and understand codebases.")
-        
+        print_system_message(
+            "This demo showcases the Claude agent's ability to search and understand codebases."
+        )
+
         if non_interactive:
             print_system_message("Running in non-interactive mode (no pauses between steps)")
-        
+
         print_separator()
-        
+
         # Set up the demo project
         setup_demo_project()
-        
+
         # Initialize the Claude agent
         print_system_message("Initializing Claude agent...")
         agent = ClaudeAgent(api_key=api_key)
         agent.register_default_tools()
         print_system_message("Claude agent initialized successfully!")
-        
+
         # Run the search demo
         await run_search_demo(agent, non_interactive=non_interactive)
-        
+
     except Exception as e:
         print_error(f"An error occurred: {str(e)}")
         import traceback
+
         traceback.print_exc()
-    
+
     finally:
         # Clean up demo files
         print_system_message("Cleaning up demo files...")
@@ -565,10 +586,12 @@ async def main(non_interactive=False):
             shutil.rmtree(DEMO_DIR)
             print_system_message(f"Removed demo directory {DEMO_DIR}")
 
+
 # Add a dedicated non-interactive main function for backwards compatibility
 async def main_non_interactive():
     """Run the demo in non-interactive mode without pauses between steps."""
     await main(non_interactive=True)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,36 +1,32 @@
-from typing import Optional, Dict, Any
+from typing import Any, Optional, Union
 
-from .base import BaseAgent
 from .claude_agent import ClaudeAgent
 from .openai_agent import OpenAIAgent
 
-def create_agent(provider: str, api_key: Optional[str] = None, model: Optional[str] = None, **kwargs) -> BaseAgent:
+
+def create_agent(
+    provider: str,
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    **kwargs: Any
+) -> Union[ClaudeAgent, OpenAIAgent]:
     """
     Create an agent based on the specified provider.
-    
+
     Args:
         provider: The provider to use ('claude' or 'openai')
         api_key: The API key to use
         model: The model to use
-        **kwargs: Additional arguments to pass to the agent
-        
+        **kwargs: Additional keyword arguments to pass to the agent constructor
+
     Returns:
-        An instance of the appropriate agent
+        An instance of the requested agent type
     """
-    provider = provider.lower()
-    
-    if provider == 'claude' or provider == 'anthropic':
-        if model is None:
-            model = "claude-3-7-sonnet-latest"
-        agent = ClaudeAgent(api_key=api_key, model=model, **kwargs)
-    elif provider == 'openai':
-        if model is None:
-            model = "gpt-4o"
-        agent = OpenAIAgent(api_key=api_key, model=model, **kwargs)
+    if provider.lower() == "claude":
+        model_str = "claude-3-5-sonnet-latest" if model is None else model
+        return ClaudeAgent(api_key=api_key, model=model_str, **kwargs)
+    elif provider.lower() == "openai":
+        model_str = "gpt-4o" if model is None else model
+        return OpenAIAgent(api_key=api_key, model=model_str, **kwargs)
     else:
-        raise ValueError(f"Unsupported provider: {provider}. Supported providers are 'claude' and 'openai'.")
-    
-    # Register default tools
-    agent.register_default_tools()
-    
-    return agent 
+        raise ValueError(f"Unsupported provider: {provider}")

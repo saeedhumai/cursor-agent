@@ -33,7 +33,7 @@ setup(
         "python-dotenv==1.0.0",
         "typing-extensions==4.8.0",
         "requests==2.31.0",
-        "urllib3==2.0.7"
+        "urllib3==2.0.7",
     ],
     extras_require={
         "dev": [
@@ -43,9 +43,9 @@ setup(
             "isort>=5.12.0",
             "flake8>=6.0.0",
             "mypy>=1.0.0",
-            "bump2version>=1.0.0"
+            "bump2version>=1.0.0",
         ]
     },
     include_package_data=True,
-    zip_safe=False
-) 
+    zip_safe=False,
+)
