@@ -136,6 +136,120 @@ openai_agent = create_agent(provider='openai')
 response = await openai_agent.chat("What's a good way to implement a cache in Python?")
 ```
 
+### Interactive Mode
+
+```python
+import asyncio
+from cursor_agent.agent import create_agent
+
+async def main():
+    # Create an agent
+    agent = create_agent(provider='claude')
+    agent.register_default_tools()
+    
+    # Initial task description
+    query = "Create a simple web scraper that extracts headlines from a news website"
+    
+    # Initialize user context (optional)
+    user_info = {
+        "workspace_path": "/your/project/path",
+        "os": "darwin",  # or "win32", "linux", etc.
+    }
+    
+    # For programmatic use, you can implement a simple interactive session like this:
+    response = await agent.chat(query, user_info)
+    print(response)
+    
+    # The agent will automatically work through the task in steps
+    # When it needs user input, it will explicitly ask for it
+    if "I need more information" in response:
+        next_query = input("Please provide additional details: ")
+        response = await agent.chat(next_query, user_info)
+        print(response)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+For a full implementation with automatic continuation, intelligent prompting, and proper context management, use the `run_agent_interactive` function provided by the library:
+
+```python
+from cursor_agent.main import run_agent_interactive
+
+async def main():
+    # Parameters:
+    # - provider: 'claude' or 'openai'
+    # - initial_query: The task description
+    # - model: Optional specific model to use
+    # - max_iterations: Maximum number of steps (default 10)
+    # - auto_continue: Whether to continue automatically without user input (default True)
+    
+    await run_agent_interactive(
+        provider='claude',
+        initial_query='Create a simple web scraper that extracts headlines from a news website',
+        max_iterations=15
+        # auto_continue=True is the default - agent continues automatically
+        # To disable automatic continuation, set auto_continue=False
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+The interactive mode is designed to automatically continue without user interaction unless:
+1. The AI explicitly requests more information from the user
+2. An error occurs that requires user decision
+3. The `--auto` flag is used, which will prompt for user input after each step
+4. The maximum tool call limit is reached, prompting for user confirmation to continue
+
+When user input is requested or provided, the system intelligently incorporates this input into the conversation flow by:
+1. Using the AI model itself to generate a contextually appropriate continuation prompt
+2. Seamlessly integrating the user's input with the existing conversation history
+3. Maintaining the natural flow of the implementation process
+
+### Automatic User Input Detection
+
+The interactive mode has built-in detection for when the agent is explicitly asking for user input. When the agent's response includes phrases like:
+- "I need more information about..."
+- "Could you provide more details on..."
+- "Please let me know your preference for..."
+- "What would you like me to do about..."
+
+The system will automatically pause and wait for user input, even in auto-continue mode. This ensures that when the agent genuinely needs clarification or a decision from you, the conversation pauses appropriately.
+
+### Tool Call Limit Confirmation
+
+For safety and to prevent runaway automation, the agent tracks the total number of tool calls made during processing a single agent response. When this count reaches a certain threshold (default: 5), the agent will request user confirmation before making more changes. This is a safeguard that:
+- Prevents unintended extensive changes to your codebase
+- Gives you visibility into complex operations
+- Allows you to review progress before continuing
+- Provides an opportunity to redirect the agent if needed
+
+Important details about how tool call tracking works:
+- The counter tracks all tool calls within one logical iteration (one agent response)
+- The counter is NOT reset until new user input is provided or a new query is started
+- The counter persists even when the agent continues with the same iteration
+
+When the limit is reached, you'll be prompted with:
+```
+The agent has made 5 tool calls in this iteration.
+Would you like to continue allowing the agent to make more changes?
+Continue? (y/n):
+```
+
+If you approve, the agent will:
+- Continue making more tool calls in the current iteration
+- Increase the limit by 5 for this iteration
+- Ask for confirmation again when the new limit is reached
+- Keep tracking the total number of tool calls (the counter is not reset)
+
+If you deny, the agent will:
+- Stop making additional tool calls for this iteration
+- Complete the current iteration with the changes already made
+- Continue to the next iteration when ready
+
+This adaptive limit ensures the agent doesn't make too many changes without your approval, while still allowing complex tasks to be completed efficiently.
+
 ### Providing Project Context
 
 ```python
