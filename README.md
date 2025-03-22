@@ -136,6 +136,55 @@ openai_agent = create_agent(provider='openai')
 response = await openai_agent.chat("What's a good way to implement a cache in Python?")
 ```
 
+### Creating a Custom Agent with Custom System Prompt
+
+```python
+import asyncio
+from cursor_agent.agent import create_agent
+
+async def main():
+    # Define a custom system prompt for a coding tutor
+    custom_system_prompt = """
+    You are an expert coding tutor specialized in helping beginners learn to code.
+    When asked coding questions:
+    1. First explain the concept in simple terms
+    2. Always provide commented example code
+    3. Suggest practice exercises
+    4. Anticipate common mistakes and warn against them
+    
+    Be patient, encouraging, and avoid technical jargon unless you explain it.
+    Focus on building good habits and understanding core principles.
+    """
+    
+    # Create agent with custom system prompt
+    coding_tutor = create_agent(
+        provider='claude',
+        model='claude-3-5-sonnet-latest',
+        system_prompt=custom_system_prompt
+    )
+    
+    # Example interaction with the custom agent
+    student_question = "I'm confused about Python list comprehensions. Can you help me understand them?"
+    
+    response = await coding_tutor.chat(student_question)
+    print(response)
+    
+    # The response will follow the guidelines in the custom system prompt,
+    # explaining list comprehensions in a beginner-friendly way with examples, 
+    # practice exercises, and common pitfalls to avoid
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+This example creates a specialized coding tutor agent with a custom personality and behavior guidelines. You can similarly create custom agents for various domains by crafting appropriate system prompts:
+
+- Data analysis assistant (focusing on pandas/numpy)
+- DevOps automation expert (for CI/CD and deployment scripts)
+- Documentation writer (generating well-structured docs from code)
+- Security code reviewer (identifying vulnerabilities in code)
+- Algorithm optimization specialist (improving performance)
+
 ### Interactive Mode
 
 ```python
@@ -431,27 +480,11 @@ For complete API documentation, refer to the docstrings in the source code.
 
 ## 🔧 Advanced Usage
 
-### Customizing System Prompts
-
-The agent uses a detailed system prompt to guide behavior. You can modify this:
-
-```python
-from cursor_agent.agent import create_agent
-
-custom_system_prompt = """
-You are an AI assistant specialized in helping with data science tasks.
-Focus on suggesting pandas and numpy solutions.
-"""
-
-agent = create_agent(
-    provider='claude',
-    system_prompt=custom_system_prompt
-)
-```
-
 ### Tool Implementation
 
-Tools are Python functions registered with the agent. Example custom tool:
+Tools are Python functions registered with the agent. The cursor-agent library supports various types of tools to enhance your agent's capabilities:
+
+#### Basic Tool Registration
 
 ```python
 from cursor_agent.agent import create_agent
@@ -473,6 +506,85 @@ agent.register_tool(
             "connection_string": {"description": "Database connection string", "type": "string"}
         },
         "required": ["query", "connection_string"]
+    }
+)
+```
+
+#### API Integration Tools
+
+```python
+from cursor_agent.agent import create_agent
+import requests
+
+agent = create_agent(provider='claude')
+
+def fetch_weather(location: str, units: str = "metric"):
+    """Fetch current weather data for a location."""
+    API_KEY = "your_api_key"  # Better to use environment variables
+    url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={location}&units={units}"
+    
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return {"error": f"API returned status code {response.status_code}"}
+
+agent.register_tool(
+    name="fetch_weather",
+    function=fetch_weather,
+    description="Get current weather data for a specified location",
+    parameters={
+        "properties": {
+            "location": {"description": "City name or coordinates", "type": "string"},
+            "units": {"description": "Units system (metric or imperial)", "type": "string"}
+        },
+        "required": ["location"]
+    }
+)
+```
+
+#### Data Processing Tools
+
+```python
+from cursor_agent.agent import create_agent
+import pandas as pd
+import json
+
+agent = create_agent(provider='claude')
+
+def analyze_csv(file_path: str, operations: list):
+    """Perform analytical operations on a CSV file."""
+    try:
+        # Load the data
+        df = pd.read_csv(file_path)
+        
+        results = {}
+        for operation in operations:
+            if operation == "summary":
+                results["summary"] = json.loads(df.describe().to_json())
+            elif operation == "columns":
+                results["columns"] = df.columns.tolist()
+            elif operation == "missing":
+                results["missing"] = json.loads(df.isnull().sum().to_json())
+                
+        return results
+    except Exception as e:
+        return {"error": str(e)}
+
+agent.register_tool(
+    name="analyze_csv",
+    function=analyze_csv,
+    description="Analyze a CSV file with various statistical operations",
+    parameters={
+        "properties": {
+            "file_path": {"description": "Path to the CSV file", "type": "string"},
+            "operations": {
+                "description": "List of operations to perform",
+                "type": "array",
+                "items": {"type": "string"}
+            }
+        },
+        "required": ["file_path", "operations"]
     }
 )
 ```
