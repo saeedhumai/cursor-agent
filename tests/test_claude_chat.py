@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import pytest
 from dotenv import load_dotenv
 
 from agent.claude_agent import ClaudeAgent
@@ -16,16 +17,19 @@ if env_path.exists():
     load_dotenv(dotenv_path=env_path)
 else:
     print("Warning: No .env file found. API keys need to be set manually.")
-    sys.exit(1)
+    # Don't exit here, we'll skip tests that need API keys
 
 
-async def test_claude_chat() -> bool:
+@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), 
+                   reason="ANTHROPIC_API_KEY environment variable not set")
+@pytest.mark.anthropic
+async def test_claude_chat() -> None:
+    """Test the Claude agent's chat functionality."""
     try:
         # Initialize the Claude agent with the API key from the environment
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if api_key is None:
-            print("Error: ANTHROPIC_API_KEY environment variable not found.")
-            return False
+            pytest.skip("ANTHROPIC_API_KEY environment variable not found.")
             
         print(f"Using API key: {api_key[:10]}...{api_key[-5:]}")
 
@@ -38,16 +42,19 @@ async def test_claude_chat() -> bool:
         response = await agent.chat("What is Python?")
 
         print(f"\nResponse from Claude: {response[:500]}...")
-        return True
+        assert response, "Response should not be empty"
+        assert len(response) > 50, "Response should be reasonably long"
     except Exception as e:
         print(f"\nError during Claude chat: {type(e).__name__}: {str(e)}")
-        return False
+        pytest.fail(f"Test failed with exception: {str(e)}")
 
 
 if __name__ == "__main__":
-    success = asyncio.run(test_claude_chat())
-    if success:
-        print("\nClaude chat test completed successfully!")
-    else:
-        print("\nClaude chat test failed!")
+    # For direct script execution with a proper exit code
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("Error: ANTHROPIC_API_KEY environment variable not found.")
         sys.exit(1)
+        
+    success = asyncio.run(test_claude_chat())
+    # The test function now returns None, so we need to check for exceptions instead
+    print("\nClaude chat test completed successfully!")

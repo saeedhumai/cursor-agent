@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
 from dotenv import load_dotenv
 
 # Load environment variables from .env file in parent directory
@@ -13,17 +14,22 @@ if env_path.exists():
     load_dotenv(dotenv_path=env_path)
 else:
     print("Warning: No .env file found. API keys need to be set manually.")
-    sys.exit(1)
+    # Don't exit here, we'll skip tests that need API keys
 
 # Get the Anthropic API key
 api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not api_key:
     print("Error: ANTHROPIC_API_KEY environment variable not set.")
-    sys.exit(1)
+    # Don't exit here, we'll skip tests that need API keys
 
-print(f"API key found: {api_key[:10]}...{api_key[-5:]}")
+# Only print API key info if it exists
+if api_key:
+    print(f"API key found: {api_key[:10]}...{api_key[-5:]}")
 
 
+@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), 
+                   reason="ANTHROPIC_API_KEY environment variable not set")
+@pytest.mark.anthropic
 async def test_anthropic_direct():
     try:
         # Import the Anthropic client
@@ -49,6 +55,11 @@ async def test_anthropic_direct():
 
 
 if __name__ == "__main__":
+    # For direct script execution, we still want to exit with error code
+    if not api_key:
+        print("Error: ANTHROPIC_API_KEY environment variable not set.")
+        sys.exit(1)
+        
     success = asyncio.run(test_anthropic_direct())
     if success:
         print("\nDirect Anthropic API test completed successfully!")

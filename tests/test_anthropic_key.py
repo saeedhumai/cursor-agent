@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
 import requests
 from dotenv import load_dotenv
 
@@ -13,13 +14,13 @@ if env_path.exists():
     load_dotenv(dotenv_path=env_path)
 else:
     print("Warning: No .env file found. API keys need to be set manually.")
-    sys.exit(1)
+    # Don't exit here, we'll skip tests that need API keys
 
 # Get the Anthropic API key
 api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not api_key:
     print("Error: ANTHROPIC_API_KEY environment variable not set.")
-    sys.exit(1)
+    pytest.skip("ANTHROPIC_API_KEY environment variable not set")
 
 print(f"API key found: {api_key[:10]}...{api_key[-5:]}")
 print(f"API key length: {len(api_key)}")

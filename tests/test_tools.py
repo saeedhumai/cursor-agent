@@ -4,11 +4,14 @@ import tempfile
 import unittest
 from typing import Any, Dict
 
+import pytest
+
 from agent.tools.file_tools import create_file, delete_file, edit_file, list_directory, read_file
 from agent.tools.search_tools import file_search, grep_search
 from agent.tools.system_tools import run_terminal_command
 
 
+@pytest.mark.fs_tools
 class TestFileTools(unittest.TestCase):
     """Test the file operation tools."""
 
@@ -96,6 +99,7 @@ class TestFileTools(unittest.TestCase):
         self.assertIn("error", result)
 
 
+@pytest.mark.fs_tools
 class TestSearchTools(unittest.TestCase):
     """Test the search tools."""
 

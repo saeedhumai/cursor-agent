@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
 import asyncio
 import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from typing import Any, Callable, Dict, TypeVar, Optional, ClassVar, Coroutine
+
+import pytest
+from dotenv import load_dotenv
 
 from agent.openai_agent import OpenAIAgent
 from tests.utils import (
@@ -28,6 +33,7 @@ def async_test(coro: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., T]:
     return wrapper
 
 
+@pytest.mark.openai
 class TestOpenAIAgent(unittest.TestCase):
     """Test the OpenAI agent functionality with real API."""
     
