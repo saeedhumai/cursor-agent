@@ -1,0 +1,18 @@
+include LICENSE
+include README.md
+include requirements.txt
+include pyproject.toml
+
+recursive-include agent *.py
+recursive-include agent *.json
+recursive-include agent *.yaml
+recursive-include agent *.yml
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+recursive-exclude * .git
+recursive-exclude * .env*
+recursive-exclude * *.log
+recursive-exclude * .pytest_cache
+recursive-exclude * .coverage
+recursive-exclude * htmlcov 

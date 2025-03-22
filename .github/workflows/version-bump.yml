@@ -1,0 +1,59 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type (major, minor, patch)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bump2version
+        
+    - name: Configure Git
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+    - name: Bump version
+      run: |
+        bump2version ${{ github.event.inputs.version_type }}
+        
+    - name: Get new version
+      id: get_version
+      run: |
+        echo "new_version=$(python setup.py --version)" >> $GITHUB_OUTPUT
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        title: "Bump version to ${{ steps.get_version.outputs.new_version }}"
+        body: "Automated version bump to ${{ steps.get_version.outputs.new_version }}"
+        branch: "version-bump/${{ steps.get_version.outputs.new_version }}"
+        base: "main"
+        labels: "version-bump" 

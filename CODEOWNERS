@@ -1,0 +1,14 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @usecodenaija will be requested for review when someone opens a pull request.
+*       @usecodenaija
+
+# Agent implementation
+/agent/ @usecodenaija
+
+# Documentation files
+*.md    @usecodenaija
+
+# Build and configuration files
+setup.py @usecodenaija
+requirements.txt @usecodenaija 
