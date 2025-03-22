@@ -97,7 +97,7 @@ OPENAI_TEMPERATURE=0.0
 
 # Anthropic configuration
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
-ANTHROPIC_API_MODEL=claude-3-opus-20240229
+ANTHROPIC_API_MODEL=claude-3-5-sonnet-latest
 ANTHROPIC_TEMPERATURE=0.0
 ```
 
@@ -212,7 +212,7 @@ cursor-agent/
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude | None |
-| `ANTHROPIC_API_MODEL` | Claude model to use | claude-3-opus-20240229 |
+| `ANTHROPIC_API_MODEL` | Claude model to use | claude-3-5-sonnet-latest |
 | `ANTHROPIC_TEMPERATURE` | Claude temperature setting | 0.0 |
 | `OPENAI_API_KEY` | OpenAI API key | None |
 | `OPENAI_API_MODEL` | OpenAI model to use | gpt-4o |
@@ -226,7 +226,7 @@ When creating an agent, you can customize its behavior:
 ```python
 agent = create_agent(
     provider='claude',               # 'claude' or 'openai'
-    model='claude-3-opus-20240229',  # Specific model to use
+    model='claude-3-5-sonnet-latest',  # Specific model to use
     temperature=0.2,                 # Creativity level
     system_prompt=None,              # Custom system prompt
     tools=None                       # Custom tools dictionary

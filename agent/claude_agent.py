@@ -15,13 +15,13 @@ class ClaudeAgent(BaseAgent):
     Claude Agent that implements the BaseAgent interface using Anthropic's Claude models.
     """
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-3-opus-20240229"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "claude-3-5-sonnet-latest"):
         """
         Initialize the Claude Agent.
         
         Args:
             api_key: Anthropic API key. If not provided, will attempt to load from ANTHROPIC_API_KEY env var.
-            model: Claude model to use. Defaults to claude-3-opus-20240229.
+            model: Claude model to use. Defaults to claude-3-5-sonnet-latest.
         """
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not self.api_key:

@@ -79,3 +79,5 @@ temp/
 
 # Log files
 *.log 
+
+venv_test/

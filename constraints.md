@@ -9,7 +9,7 @@ This document outlines the constraints of the AI Agent implementation and provid
 - **Workaround**: Implement conversation summarization and prune history when approaching limits.
 
 - **Constraint**: Claude has specific model versions that may not be backward compatible, and the API structure for tools can change between versions.
-- **Workaround**: The implementation uses `claude-3-opus-20240229` by default which is known to be stable, and provides compatibility adaptations for tool formats.
+- **Workaround**: The implementation uses `claude-3-5-sonnet-latest` by default which is known to be stable, and provides compatibility adaptations for tool formats.
 
 ### OpenAI Constraints
 - **Constraint**: OpenAI models have varying context window limits (16K-128K tokens depending on the model) that may restrict large codebases.
