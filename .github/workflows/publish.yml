@@ -49,7 +49,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: |
-        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        twine upload --verbose --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
         
     # Publish to Test PyPI on staging branch push
     - name: Publish to Test PyPI (Staging)
@@ -58,7 +58,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: |
-        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        twine upload --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
         
     # Publish to both Test PyPI and PyPI on release from main or tag push
     - name: Publish to Test PyPI (Release or Tag)
@@ -67,7 +67,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: |
-        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        twine upload --verbose --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
         
     - name: Publish to PyPI (Release or Tag)
       if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
@@ -75,7 +75,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        twine upload dist/*
+        twine upload --verbose dist/*
         
     - name: Upload artifacts to release
       if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
