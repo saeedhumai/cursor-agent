@@ -105,7 +105,7 @@ ANTHROPIC_TEMPERATURE=0.0
 
 ```python
 import asyncio
-from agent.factory import create_agent
+from cursor_agent.agent import create_agent
 
 async def main():
     # Create a Claude agent instance
@@ -124,6 +124,9 @@ if __name__ == "__main__":
 ### Chat with Different Models
 
 ```python
+import asyncio
+from cursor_agent.agent import create_agent
+
 # Use Claude
 claude_agent = create_agent(provider='claude')
 response = await claude_agent.chat("What's a good way to implement a cache in Python?")
@@ -136,6 +139,10 @@ response = await openai_agent.chat("What's a good way to implement a cache in Py
 ### Providing Project Context
 
 ```python
+from cursor_agent.agent import create_agent
+
+agent = create_agent(provider='claude')
+
 user_info = {
     "open_files": ["src/main.py", "src/utils.py"],
     "cursor_position": {"file": "src/main.py", "line": 42},
@@ -150,6 +157,10 @@ response = await agent.chat("Fix the bug in the main function", user_info=user_i
 ### Custom Tool Registration
 
 ```python
+from cursor_agent.agent import create_agent
+
+agent = create_agent(provider='claude')
+
 def custom_tool(param1, param2):
     # Tool implementation
     return {"result": f"Processed {param1} and {param2}"}
@@ -224,6 +235,8 @@ cursor-agent/
 When creating an agent, you can customize its behavior:
 
 ```python
+from cursor_agent.agent import create_agent
+
 agent = create_agent(
     provider='claude',               # 'claude' or 'openai'
     model='claude-3-5-sonnet-latest',  # Specific model to use
@@ -250,6 +263,9 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 ### Agent Factory
 
 ```python
+# Import the factory function
+from cursor_agent.agent import create_agent
+
 def create_agent(
     provider: str = "claude",
     model: Optional[str] = None,
@@ -275,6 +291,10 @@ def create_agent(
 ### Base Agent Methods
 
 ```python
+# Import necessary types
+from typing import Dict, List, Callable, Optional
+from cursor_agent.agent import BaseAgent
+
 class BaseAgent:
     async def chat(
         self, user_message: str, user_info: Optional[Dict] = None
@@ -302,6 +322,8 @@ For complete API documentation, refer to the docstrings in the source code.
 The agent uses a detailed system prompt to guide behavior. You can modify this:
 
 ```python
+from cursor_agent.agent import create_agent
+
 custom_system_prompt = """
 You are an AI assistant specialized in helping with data science tasks.
 Focus on suggesting pandas and numpy solutions.
@@ -318,6 +340,10 @@ agent = create_agent(
 Tools are Python functions registered with the agent. Example custom tool:
 
 ```python
+from cursor_agent.agent import create_agent
+
+agent = create_agent(provider='claude')
+
 def database_query(query: str, connection_string: str):
     """Execute a database query and return results."""
     # Implementation...
