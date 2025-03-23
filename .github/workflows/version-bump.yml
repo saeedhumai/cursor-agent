@@ -58,6 +58,15 @@ jobs:
         echo "search = current_version = \"{current_version}\"" >> .bumpversion.cfg
         echo "replace = current_version = \"{new_version}\"" >> .bumpversion.cfg
         
+        # Print the content of pyproject.toml for debugging
+        echo "Content of pyproject.toml:"
+        cat pyproject.toml
+        
+        # Update pyproject.toml with current version from setup.py first
+        current_version=$(python setup.py --version)
+        echo "Current version from setup.py: $current_version"
+        sed -i "s/current_version = \".*\"/current_version = \"$current_version\"/" pyproject.toml
+        
         # Now run bump2version with --allow-dirty flag
         bump2version --allow-dirty ${{ github.event.inputs.version_type }}
         
