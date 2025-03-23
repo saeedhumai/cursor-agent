@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Chat Demo for Cursor Agent
+Chat Conversation Example for Cursor Agent
 
 This script demonstrates the agent's conversational capabilities,
 allowing extended interaction with the agent through multiple queries.
@@ -58,7 +58,7 @@ load_dotenv()
 
 async def main():
     """
-    Main entry point for the chat demo.
+    Main entry point for the chat conversation example.
     """
     # Load environment variables
     load_dotenv()
@@ -83,8 +83,8 @@ async def main():
     try:
         clear_screen()
         print_separator()
-        print_system_message("CHAT DEMO")
-        print_system_message("This demo showcases the agent's conversational capabilities.")
+        print_system_message("CHAT CONVERSATION EXAMPLE")
+        print_system_message("This example showcases the agent's conversational capabilities.")
         print_separator()
         
         # Prompt for model if multiple are available
@@ -139,12 +139,17 @@ async def main():
                 print_error(f"Error getting response: {str(e)}")
                 
         print_separator()
-        print_system_message("CHAT DEMO COMPLETED")
+        print_system_message("CHAT CONVERSATION EXAMPLE COMPLETED")
         
     except Exception as e:
         print_error(f"An error occurred: {str(e)}")
         import traceback
         traceback.print_exc()
+        
+    finally:
+        # Cleanup if needed
+        print_separator()
+        print_system_message("CHAT EXAMPLE COMPLETED")
 
 
 if __name__ == "__main__":

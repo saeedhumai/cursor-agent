@@ -58,10 +58,10 @@ def create_agent(
         if model in models or any(model.startswith(m.split('-')[0]) for m in models):
             provider = prov
             break
-    
+
     # Normalize the model name if needed
     normalized_model = MODEL_NORMALIZATION.get(model, model)
-    
+
     # Create the appropriate agent based on the provider
     if provider == "claude":
         return ClaudeAgent(api_key=api_key, model=normalized_model, **kwargs)

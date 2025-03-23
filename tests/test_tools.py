@@ -105,35 +105,67 @@ class TestSearchTools(unittest.TestCase):
 
     def setUp(self) -> None:
         """Set up the test environment."""
-        # Create a temp directory for test files
-        self.test_dir = tempfile.mkdtemp()
+        # Store the original directory to ensure we can return to it
+        try:
+            self.original_dir = os.path.abspath(os.getcwd())
+        except FileNotFoundError:
+            # If we can't get the current directory, use the directory where the test file is located
+            self.original_dir = os.path.abspath(os.path.dirname(__file__))
+            os.chdir(self.original_dir)
+            print(f"Reset working directory to: {self.original_dir}")
+            
+        # Create a temp directory for test files using absolute paths
+        try:
+            # Create a test directory in the test_files_tmp directory
+            self.test_dir = os.path.abspath(os.path.join(self.original_dir, "test_files_tmp", "search_tools_test"))
+            os.makedirs(self.test_dir, exist_ok=True)
+            print(f"Test directory path: {self.test_dir}")
+            print(f"Test directory exists: {os.path.exists(self.test_dir)}")
+            print(f"Test directory is writable: {os.access(self.test_dir, os.W_OK)}")
+            
+            # Create multiple test files with content to search
+            self.files = []
+            for i in range(3):
+                file_path = os.path.join(self.test_dir, f"test{i}.txt")
+                with open(file_path, "w") as f:
+                    f.write(f"This is test file {i}\nIt contains searchable content\nFIND_ME_{i}")
+                self.files.append(file_path)
 
-        # Create multiple test files with content to search
-        self.files = []
-        for i in range(3):
-            file_path = os.path.join(self.test_dir, f"test{i}.txt")
-            with open(file_path, "w") as f:
-                f.write(f"This is test file {i}\nIt contains searchable content\nFIND_ME_{i}")
-            self.files.append(file_path)
-
-        # Add a Python file
-        self.py_file = os.path.join(self.test_dir, "test.py")
-        with open(self.py_file, "w") as f:
-            f.write("def search_function():\n    return 'FIND_ME_PY'\n")
-        self.files.append(self.py_file)
+            # Add a Python file
+            self.py_file = os.path.join(self.test_dir, "test.py")
+            with open(self.py_file, "w") as f:
+                f.write("def search_function():\n    return 'FIND_ME_PY'\n")
+            self.files.append(self.py_file)
+            
+        except Exception as e:
+            self.skipTest(f"Error setting up test environment: {str(e)}")
 
     def tearDown(self) -> None:
         """Clean up after tests."""
-        # Remove temp directory
-        shutil.rmtree(self.test_dir, ignore_errors=True)
+        # Clean up test directory if it exists
+        if hasattr(self, "test_dir") and os.path.exists(self.test_dir):
+            try:
+                shutil.rmtree(self.test_dir, ignore_errors=True)
+                print(f"Removed test directory: {self.test_dir}")
+            except Exception as e:
+                print(f"Warning: Could not clean up test directory: {str(e)}")
+                
+        # Return to original directory if we changed it
+        if hasattr(self, "original_dir"):
+            try:
+                os.chdir(self.original_dir)
+                print(f"Returned to original directory: {self.original_dir}")
+            except Exception as e:
+                print(f"Warning: Could not return to original directory: {str(e)}")
 
     def test_grep_search(self) -> None:
         """Test grep search."""
         # Change to the test directory to make relative paths work
-        original_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
         try:
+            original_dir = os.path.abspath(os.getcwd())
+            os.chdir(self.test_dir)
+            print(f"Changed to test directory: {self.test_dir}")
+
             # Search for a term that exists in all files
             result = grep_search("searchable")
             self.assertIn("results", result)
@@ -151,15 +183,27 @@ class TestSearchTools(unittest.TestCase):
             self.assertGreaterEqual(result["total_matches"], 4)  # All 4 files have "FIND_ME"
         finally:
             # Restore the original directory
-            os.chdir(original_dir)
+            try:
+                os.chdir(original_dir)
+                print(f"Returned to original directory: {original_dir}")
+            except Exception as e:
+                print(f"Warning: Could not return to original directory: {str(e)}")
+                # Try to go back to the initial directory as a fallback
+                if hasattr(self, "original_dir"):
+                    try:
+                        os.chdir(self.original_dir)
+                        print(f"Returned to setup directory: {self.original_dir}")
+                    except Exception as ex:
+                        print(f"Failed to return to any known directory: {str(ex)}")
 
     def test_file_search(self) -> None:
         """Test file search."""
         # Change to the test directory to make relative paths work
-        original_dir = os.getcwd()
-        os.chdir(self.test_dir)
-
         try:
+            original_dir = os.path.abspath(os.getcwd())
+            os.chdir(self.test_dir)
+            print(f"Changed to test directory: {self.test_dir}")
+
             # Search for Python files
             result = file_search(".py")
             self.assertIn("results", result)
@@ -172,7 +216,18 @@ class TestSearchTools(unittest.TestCase):
             self.assertEqual(len(result["results"]), 4)  # All 4 files have "test" in name
         finally:
             # Restore the original directory
-            os.chdir(original_dir)
+            try:
+                os.chdir(original_dir)
+                print(f"Returned to original directory: {original_dir}")
+            except Exception as e:
+                print(f"Warning: Could not return to original directory: {str(e)}")
+                # Try to go back to the initial directory as a fallback
+                if hasattr(self, "original_dir"):
+                    try:
+                        os.chdir(self.original_dir)
+                        print(f"Returned to setup directory: {self.original_dir}")
+                    except Exception as ex:
+                        print(f"Failed to return to any known directory: {str(ex)}")
 
 
 class TestSystemTools(unittest.TestCase):

@@ -41,6 +41,15 @@ class TestOpenAIAgent(unittest.TestCase):
 
     def setUp(self) -> None:
         """Set up the test environment."""
+        # Store the original directory to ensure we can return to it
+        try:
+            self.original_dir = os.path.abspath(os.getcwd())
+        except FileNotFoundError:
+            # If we can't get the current directory, use the directory where the test file is located
+            self.original_dir = os.path.abspath(os.path.dirname(__file__))
+            os.chdir(self.original_dir)
+            print(f"Reset working directory to: {self.original_dir}")
+            
         self.env = get_test_env()
 
         # Skip entire class if no valid API key
@@ -58,16 +67,44 @@ class TestOpenAIAgent(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"Failed to initialize OpenAI agent: {str(e)}")
 
-        # Create a temp directory for test files
-        # Use a temp directory in the workspace instead of the system temp directory
-        self.test_dir = os.path.join(os.getcwd(), "test_files_tmp")
-        os.makedirs(self.test_dir, exist_ok=True)
+        # Debug information - use try/except to handle potential errors
+        try:
+            print(f"Current working directory: {os.getcwd()}")
+            
+            # Create an absolute path for the test directory
+            self.test_dir = os.path.abspath(os.path.join(self.original_dir, "test_files_tmp"))
+            
+            # Ensure directory exists
+            os.makedirs(self.test_dir, exist_ok=True)
+            
+            print(f"Test directory path: {self.test_dir}")
+            print(f"Test directory exists: {os.path.exists(self.test_dir)}")
+            print(f"Test directory is writable: {os.access(self.test_dir, os.W_OK)}")
+            
+            # Test that we can actually write to the directory
+            test_file = os.path.join(self.test_dir, "test_permissions.txt")
+            with open(test_file, 'w') as f:
+                f.write("Test file to verify permissions\n")
+            os.remove(test_file)  # Clean up
+            
+        except Exception as e:
+            self.skipTest(f"Error setting up test environment: {str(e)}")
 
     def tearDown(self) -> None:
         """Clean up after tests."""
         # Clean up test directory if it exists
         if hasattr(self, "test_dir") and os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir, ignore_errors=True)
+            try:
+                shutil.rmtree(self.test_dir, ignore_errors=True)
+            except Exception as e:
+                print(f"Warning: Could not clean up test directory: {str(e)}")
+                
+        # Return to original directory if we changed it
+        if hasattr(self, "original_dir"):
+            try:
+                os.chdir(self.original_dir)
+            except Exception as e:
+                print(f"Warning: Could not return to original directory: {str(e)}")
 
     def test_init(self) -> None:
         """Test agent initialization."""

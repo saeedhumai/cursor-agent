@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Search Demo for Cursor Agent
+Code Search Example for Cursor Agent
 
 This script demonstrates the agent's capabilities for searching and understanding codebases.
 It showcases how the agent can navigate through code, find relevant information,
@@ -57,18 +57,20 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-# Demo project directory
-DEMO_DIR = os.path.join(os.path.dirname(__file__), "demo_project")
+# Create a temporary directory for the example project
+EXAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "example_project")
+os.makedirs(EXAMPLE_DIR, exist_ok=True)
+print_system_message(f"Example project created at {EXAMPLE_DIR}")
 
 
-def setup_demo_project():
-    """Set up a demo project with multiple files for the search demo."""
+def setup_example_project():
+    """Set up an example project with multiple files for the code search example."""
 
-    # Create the demo project directory if it doesn't exist
-    os.makedirs(DEMO_DIR, exist_ok=True)
+    # Create the example project directory if it doesn't exist
+    os.makedirs(EXAMPLE_DIR, exist_ok=True)
 
     # Create main.py
-    with open(os.path.join(DEMO_DIR, "main.py"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "main.py"), "w") as f:
         f.write(
             """#!/usr/bin/env python3
 \"\"\"
@@ -116,8 +118,8 @@ if __name__ == "__main__":
         )
 
     # Create models directory and user.py
-    os.makedirs(os.path.join(DEMO_DIR, "models"), exist_ok=True)
-    with open(os.path.join(DEMO_DIR, "models", "user.py"), "w") as f:
+    os.makedirs(os.path.join(EXAMPLE_DIR, "models"), exist_ok=True)
+    with open(os.path.join(EXAMPLE_DIR, "models", "user.py"), "w") as f:
         f.write(
             """#!/usr/bin/env python3
 \"\"\"
@@ -170,9 +172,9 @@ class User:
         )
 
     # Create utils directory with logger.py and config.py
-    os.makedirs(os.path.join(DEMO_DIR, "utils"), exist_ok=True)
+    os.makedirs(os.path.join(EXAMPLE_DIR, "utils"), exist_ok=True)
 
-    with open(os.path.join(DEMO_DIR, "utils", "logger.py"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "utils", "logger.py"), "w") as f:
         f.write(
             """#!/usr/bin/env python3
 \"\"\"
@@ -234,7 +236,7 @@ def setup_logger(log_level: str = "INFO", log_file: Optional[str] = None):
 """
         )
 
-    with open(os.path.join(DEMO_DIR, "utils", "config.py"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "utils", "config.py"), "w") as f:
         f.write(
             """#!/usr/bin/env python3
 \"\"\"
@@ -318,7 +320,7 @@ class Config:
         )
 
     # Create database.py
-    with open(os.path.join(DEMO_DIR, "database.py"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "database.py"), "w") as f:
         f.write(
             """#!/usr/bin/env python3
 \"\"\"
@@ -441,7 +443,7 @@ class Database:
         )
 
     # Create a README.md file
-    with open(os.path.join(DEMO_DIR, "README.md"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "README.md"), "w") as f:
         f.write(
             """# Demo Project
 
@@ -467,7 +469,7 @@ Note: This is a demonstration project and does not have any real functionality.
         )
 
     # Create an empty config.yaml file
-    with open(os.path.join(DEMO_DIR, "config.yaml"), "w") as f:
+    with open(os.path.join(EXAMPLE_DIR, "config.yaml"), "w") as f:
         f.write(
             """# Application configuration
 database_url: "memory://demo"
@@ -477,29 +479,29 @@ max_users: 100
 """
         )
 
-    print_system_message(f"Demo project created at {DEMO_DIR}")
+    print_system_message(f"Example project created at {EXAMPLE_DIR}")
 
 
-async def run_search_demo(agent):
-    """Run the search demo scenario.
+async def run_code_search_example(agent):
+    """Run the code search example scenario.
 
     Args:
-        agent: The initialized Claude agent
+        agent: The initialized agent
     """
     print_separator()
-    print_system_message("SEARCH DEMO SCENARIO")
-    print_system_message("We'll explore the demo project codebase with the Claude agent")
+    print_system_message("CODE SEARCH EXAMPLE SCENARIO")
+    print_system_message("We'll explore the example project codebase with the Claude agent")
     print_separator()
 
-    # Create a context with our demo project files
-    demo_files = []
-    for root, _, files in os.walk(DEMO_DIR):
+    # Create a context with our example project files
+    example_files = []
+    for root, _, files in os.walk(EXAMPLE_DIR):
         for file in files:
             file_path = os.path.join(root, file)
-            demo_files.append(file_path)
+            example_files.append(file_path)
 
-    # Create user info with the demo project files
-    user_info = create_user_info(demo_files)
+    # Create user info with the example project files
+    user_info = create_user_info(example_files)
 
     # Enhance user_info with file contents
     if "open_files" not in user_info:
@@ -510,11 +512,11 @@ async def run_search_demo(agent):
 
     # Add file contents to the open_files info - use simple string paths
     # instead of complex dictionaries to avoid issues with the tools
-    user_info["open_files"] = demo_files
+    user_info["open_files"] = example_files
 
     # Add file_contents separately as a dictionary for reference
     user_info["file_contents"] = {}
-    for file_path in demo_files:
+    for file_path in example_files:
         try:
             if os.path.isfile(file_path):  # Ensure it's a file
                 with open(file_path, "r") as f:
@@ -523,15 +525,15 @@ async def run_search_demo(agent):
         except Exception as e:
             print_error(f"Error reading file {file_path}: {str(e)}")
 
-    # Demo queries
-    demo_queries = [
+    # Example queries
+    example_queries = [
         "How does the logging system work in this project?",
         "What operations can be performed on users in the database?",
         "Show me how the application handles configuration.",
         "Explain the overall architecture of this project.",
     ]
 
-    for i, query in enumerate(demo_queries):
+    for i, query in enumerate(example_queries):
         print_separator()
         print_user_input(query)
         print_system_message("Processing request...")
@@ -543,19 +545,19 @@ async def run_search_demo(agent):
             print_error(f"Error getting response: {str(e)}")
 
         # If not the last query, wait for user input
-        if i < len(demo_queries) - 1:
+        if i < len(example_queries) - 1:
             input(f"{Colors.GRAY}Press Enter to continue to the next question...{Colors.RESET}")
         else:
             # Add a small delay for readability at the end
             await asyncio.sleep(1)
 
     print_separator()
-    print_system_message("SEARCH DEMO COMPLETED")
+    print_system_message("CODE SEARCH EXAMPLE COMPLETED")
 
 
 async def main():
     """
-    Main entry point for the search demo.
+    Main entry point for the code search example.
     """
     # Load environment variables
     load_dotenv()
@@ -580,14 +582,14 @@ async def main():
     try:
         clear_screen()
         print_separator()
-        print_system_message("CODE SEARCH DEMO")
+        print_system_message("CODE SEARCH EXAMPLE")
         print_system_message(
-            "This demo showcases the agent's ability to search and understand codebases."
+            "This example showcases the agent's ability to search and understand codebases."
         )
         print_separator()
 
-        # Set up the demo project
-        setup_demo_project()
+        # Set up the example project
+        setup_example_project()
 
         # Initialize the agent using cursor_agent package
         print_system_message(f"Initializing agent with model {model}...")
@@ -596,8 +598,8 @@ async def main():
         agent = create_agent(model=model)
         print_system_message("Agent initialized successfully!")
 
-        # Run the search demo
-        await run_search_demo(agent)
+        # Run the code search example
+        await run_code_search_example(agent)
 
     except Exception as e:
         print_error(f"An error occurred: {str(e)}")
@@ -605,11 +607,11 @@ async def main():
         traceback.print_exc()
 
     finally:
-        # Clean up demo files
-        print_system_message("Cleaning up demo files...")
-        if os.path.exists(DEMO_DIR):
-            shutil.rmtree(DEMO_DIR)
-            print_system_message(f"Removed demo directory {DEMO_DIR}")
+        # Clean up example files
+        print_system_message("Cleaning up example files...")
+        if os.path.exists(EXAMPLE_DIR):
+            shutil.rmtree(EXAMPLE_DIR)
+            print_system_message(f"Removed example directory {EXAMPLE_DIR}")
 
 
 if __name__ == "__main__":

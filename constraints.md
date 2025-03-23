@@ -227,3 +227,29 @@ By applying these workarounds, we've maintained strong type safety throughout th
 ### Dependencies Management
 - **Constraint**: Upgrading the Anthropic SDK required updating dependencies in both setup.py and requirements.txt to specify compatible version ranges.
 - **Workaround**: Updated dependency specifications to use version ranges with minimum compatible versions (e.g., `anthropic>=0.49.0`) rather than pinning to specific versions, allowing for future patch updates without breaking changes. 
+
+## CI/CD Pipeline Constraints
+
+### Code Quality Enforcement
+- **Constraint**: The CI/CD pipeline enforces strict code quality standards that can fail for subtle issues like whitespace, unused imports, and missing type annotations.
+- **Workaround**: Created local CI/CD check scripts (`run_ci_checks.sh`) that run the same checks as the CI/CD pipeline, allowing developers to catch and fix issues before pushing to remote repositories.
+
+### Type Annotation Challenges
+- **Constraint**: Mypy type checking requires precise type annotations for all variables and function return types, which can be challenging in complex async code with multiple execution paths.
+- **Workaround**: Implemented explicit type annotations for all variables and functions, using Union types where necessary to handle multiple return types and being careful with variable redefinitions.
+
+### Testing Directory Structure
+- **Constraint**: Some tests rely on specific directory structures being present, which may not be created automatically during test setup.
+- **Workaround**: Created a `create_test_dirs.py` script that ensures all required test directories exist before running tests, and updated the test commands to run this script first.
+
+### Linting Whitespace Issues
+- **Constraint**: Flake8 enforces strict rules about whitespace in blank lines and at the end of lines, which can be difficult to spot manually.
+- **Workaround**: Used sed commands to automatically remove trailing whitespace from files, ensuring consistent whitespace handling across the codebase.
+
+### File Permission Issues
+- **Constraint**: Tests that interact with the file system may encounter permission issues or path-related errors when run in different environments.
+- **Workaround**: Tests now check for and create necessary directories with appropriate permissions, and include better error handling when file operations fail.
+
+### Test Environment Consistency
+- **Constraint**: The CI environment may differ from local development environments, leading to inconsistent test results.
+- **Workaround**: Created a separate virtual environment for testing (`venv_test`) that closely mirrors the CI environment, ensuring tests run consistently across environments. 

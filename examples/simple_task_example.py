@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main Demo for Cursor Agent
+Simple Task Example for Cursor Agent
 
 This script demonstrates the basic usage of the cursor agent to accomplish a simple task.
 It shows how to create agents, process queries, and execute responses interactively.
@@ -52,7 +52,7 @@ load_dotenv()
 
 async def main():
     """
-    Main entry point for the demo.
+    Main entry point for the example.
     """
     # Load environment variables
     load_dotenv()
@@ -74,8 +74,8 @@ async def main():
     try:
         clear_screen()
         print_separator()
-        print_system_message("SIMPLE TASK DEMO")
-        print_system_message("This demo shows the cursor agent solving a simple task interactively.")
+        print_system_message("SIMPLE TASK EXAMPLE")
+        print_system_message("This example shows the cursor agent solving a simple task interactively.")
         print_separator()
         
         print_system_message(f"Using model: {model}")
@@ -111,9 +111,9 @@ async def main():
         import traceback
         traceback.print_exc()
         
-        # Ensure we change back to the original directory if an exception occurs
-        if 'original_dir' in locals():
-            os.chdir(original_dir)
+    finally:
+        print_separator()
+        print_system_message("SIMPLE TASK EXAMPLE COMPLETED")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Interactive Demo for Cursor Agent
+Interactive Mode Example for Cursor Agent
 
 This script demonstrates the agent's capabilities in interactive mode,
 allowing the user to engage in a conversation with the agent and see how 
@@ -50,7 +50,7 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-# Default task for demo mode
+# Default task for example mode
 DEFAULT_TASK = """Create a simple Todo list API with FastAPI with the following features:
 1. A Todo model with id, title, description, and completed status
 2. CRUD endpoints (Create, Read, Update, Delete)
@@ -62,7 +62,7 @@ Include docstrings and proper error handling.
 async def main():
 
     """
-    Main entry point for the interactive demo.
+    Main entry point for the interactive example.
     
     Args:
         interactive: When True, prompt user for model and query. When False, use defaults.
@@ -92,7 +92,7 @@ async def main():
     try:
         clear_screen()
         print_separator()
-        print_system_message("INTERACTIVE DEMO")
+        print_system_message("INTERACTIVE MODE EXAMPLE")
        
         # Non-interactive mode - use default values
         print_system_message("Running in non-interactive mode with predefined task")
@@ -103,12 +103,12 @@ async def main():
         # Store original directory
         original_dir = os.getcwd()
         
-        # Create demo_files directory if it doesn't exist
-        demo_dir = Path(original_dir) / "demo_files" / "interactive_demo"
-        demo_dir.mkdir(parents=True, exist_ok=True)
+        # Create example_files directory if it doesn't exist
+        example_dir = Path(original_dir) / "example_files" / "interactive_example"
+        example_dir.mkdir(parents=True, exist_ok=True)
         
-        # Change to the demo_files directory
-        os.chdir(demo_dir)
+        # Change to the example_files directory
+        os.chdir(example_dir)
         print_system_message(f"Working in directory: {os.getcwd()}")
         print_separator()
         
@@ -131,6 +131,12 @@ async def main():
         # Ensure we change back to the original directory if an exception occurs
         if 'original_dir' in locals():
             os.chdir(original_dir)
+            
+    finally:
+        # Make sure we always return to the original directory
+        if 'original_dir' in locals():
+            os.chdir(original_dir)
+        print_system_message("INTERACTIVE EXAMPLE COMPLETED")
 
 
 if __name__ == "__main__":
