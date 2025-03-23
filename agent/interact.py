@@ -29,26 +29,29 @@ else:
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
 
+
 # Add a NextAction class to better represent different continuation options
 class ActionType(Enum):
     """Enumeration of possible next action types in the agent conversation."""
-    COMPLETE = "complete"           # Task is complete, exit the loop
-    USER_INPUT = "user_input"       # Agent needs user input to continue
-    AUTO_CONTINUE = "auto_continue" # Continue automatically
-    MANUAL_CONTINUE = "manual"      # Prompt for user direction
-    
+    COMPLETE = "complete"            # Task is complete, exit the loop
+    USER_INPUT = "user_input"        # Agent needs user input to continue
+    AUTO_CONTINUE = "auto_continue"  # Continue automatically
+    MANUAL_CONTINUE = "manual"       # Prompt for user direction
+
+
 class NextAction:
     """Represents the next action to take in the agent conversation."""
     def __init__(self, action_type: ActionType, prompt: Optional[str] = None):
         """
         Initialize a NextAction instance.
-        
+
         Args:
-            action_type: The type of action to take next
+            action_type: The type of action to take nex
             prompt: Optional prompt for user input (if action_type is USER_INPUT)
         """
         self.action_type = action_type
-        self.prompt = prompt
+        self.prompt = prompt or ""  # Ensure prompt is always a string
+
 
 # Define enhanced system prompt similar to what Cursor uses
 CURSOR_SYSTEM_PROMPT = """
@@ -115,7 +118,7 @@ async def print_status_before_agent(message: str, details: Optional[str] = None)
     Simple utility function to print status messages before the agent is initialized.
 
     Args:
-        message: The status message to print
+        message: The status message to prin
         details: Optional details to include
     """
     print(f"\nℹ️ {message}")
@@ -129,7 +132,7 @@ async def print_agent_information(agent: Any, information_type: str, content: st
     Uses the agent itself to generate styling and formatting.
 
     Args:
-        agent: The agent instance to use for generating formatted output
+        agent: The agent instance to use for generating formatted outpu
         information_type: Type of information (thinking, tool_call, tool_result, plan, etc.)
         content: The main content to display
         details: Optional details/metadata to display (dict or string)
@@ -140,7 +143,7 @@ async def print_agent_information(agent: Any, information_type: str, content: st
         # except Exception:
         #     terminal_width = 80  # Default if can't get terminal size
 
-        # Convert details to a string representation if it's a dict
+        # Convert details to a string representation if it's a dic
         details_str = ""
         if details:
             if isinstance(details, dict):
@@ -151,7 +154,7 @@ async def print_agent_information(agent: Any, information_type: str, content: st
         # Create a temporary user info to avoid polluting the main conversation
         temp_user_info = {"temporary_context": True, "is_formatting_request": True}
 
-        # Prepare the formatting prompt
+        # Prepare the formatting promp
         format_prompt = f"""Format the following "{information_type}" information for console display:
 
 CONTENT: {content}
@@ -171,10 +174,10 @@ Command: Green
 Return ONLY the formatted text with ANSI codes that I can directly print to the console.
 Do not include explanation text or markdown code blocks."""
 
-        # Use the agent to generate the formatted output
+        # Use the agent to generate the formatted outpu
         formatted_output = await agent.chat(format_prompt, temp_user_info)
 
-        # Print the output
+        # Print the outpu
         print(formatted_output)
 
     except Exception:
@@ -360,36 +363,36 @@ First, I'll create a plan for how to approach this task, then implement it step 
         try:
             # 1. Update workspace state
             user_info = update_workspace_state(user_info, created_or_modified_files)
-            
+
             # 2. Process query and get response
             response, duration = await process_query_and_get_response(agent, query, user_info)
-            
+
             # 3. Process tool calls (returns updated tool call count)
             tool_calls = extract_tool_calls(response)
             current_iteration_tool_calls = await process_tool_calls(
                 agent, tool_calls, user_info, created_or_modified_files, current_iteration_tool_calls
             )
-            
+
             # 4. Check if tool call limit reached
             continue_processing, max_tool_calls_per_iteration = await check_tool_call_limits(
                 agent, current_iteration_tool_calls, max_tool_calls_per_iteration
             )
-            
+
             if not continue_processing:
                 # Skip to next iteration if user doesn't want to continue
                 iteration += 1
                 current_iteration_tool_calls = 0
                 continue
-            
+
             # 5. Determine next steps
             next_action = await determine_next_steps(agent, response, auto_continue, iteration)
-            
+
             # 6. Handle different next actions
             if next_action.action_type == ActionType.COMPLETE:
                 # Task complete, exit loop
                 await print_agent_information(agent, "status", "Task has been completed successfully!")
                 break
-                
+
             elif next_action.action_type == ActionType.USER_INPUT:
                 # Get user input and create continuation
                 user_input = await get_user_input(next_action.prompt)
@@ -397,13 +400,13 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 current_iteration_tool_calls = 0
                 iteration += 1
                 continue
-                
+
             elif next_action.action_type == ActionType.AUTO_CONTINUE:
                 # Auto-continue to next step
                 query = await get_continuation_prompt(agent, iteration, response)
                 await print_agent_information(agent, "status", "Automatically continuing to next step...")
                 time.sleep(2)  # Brief pause for readability
-                
+
             elif next_action.action_type == ActionType.MANUAL_CONTINUE:
                 # Get user direction for continuation
                 await print_agent_information(agent, "response", "How can I help you further with this task? Please provide any guidance or specific requests.")
@@ -412,19 +415,19 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 current_iteration_tool_calls = 0
                 iteration += 1
                 continue
-            
+
             # 7. Manage context history
             user_info = await trim_context_history(user_info)
-            
+
             # 8. Show progress messages
             await show_progress_messages(agent, auto_continue, response, iteration, max_iterations)
-            
+
             iteration += 1
-            
+
         except Exception as e:
             # 9. Handle exceptions
             action = await handle_iteration_error(agent, e, iteration, user_info)
-            
+
             if action == "RETRY":
                 continue
             elif action == "CONTINUE_WITH_ERROR":
@@ -432,7 +435,7 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 iteration += 1
             else:  # "END"
                 break
-    
+
     # End of conversation
     await print_agent_information(agent, "status", f"Conversation ended after {iteration-1} iterations.")
     return "Conversation complete."
@@ -734,21 +737,21 @@ async def run_agent_chat(
 
 async def process_tool_calls(
     agent: Any,
-    tool_calls: List[Dict[str, Any]], 
-    user_info: Dict[str, Any], 
+    tool_calls: List[Dict[str, Any]],
+    user_info: Dict[str, Any],
     created_or_modified_files: set,
     current_iteration_tool_calls: int
 ) -> int:
     """
     Process a list of tool calls and update tracking information.
-    
+
     Args:
         agent: The agent instance
         tool_calls: List of tool call dictionaries
         user_info: User context information to update
         created_or_modified_files: Set of created/modified files to update
         current_iteration_tool_calls: Current count of tool calls in this iteration
-        
+
     Returns:
         Updated count of tool calls in this iteration
     """
@@ -787,36 +790,36 @@ async def process_tool_calls(
                     user_info["command_history"] = [command]
                 # Convert command to string to ensure it's a valid type
                 await print_agent_information(agent, "command", f"Executed command: {command}")
-    
+
     return current_iteration_tool_calls
 
 
 async def check_tool_call_limits(
     agent: Any,
-    current_iteration_tool_calls: int, 
+    current_iteration_tool_calls: int,
     max_tool_calls_per_iteration: int
 ) -> Tuple[bool, int]:
     """
     Check if the tool call limit has been reached and ask the user whether to continue.
-    
+
     Args:
         agent: The agent instance
         current_iteration_tool_calls: Current count of tool calls in this iteration
         max_tool_calls_per_iteration: Maximum allowed tool calls per iteration
-        
+
     Returns:
         Tuple of (continue_processing, new_max_limit)
     """
     if current_iteration_tool_calls >= max_tool_calls_per_iteration:
         await print_agent_information(
-            agent, 
-            "status", 
+            agent,
+            "status",
             f"Reached maximum of {max_tool_calls_per_iteration} tool calls in this iteration"
         )
         print(f"\n{Colors.YELLOW}The agent has made {current_iteration_tool_calls} tool calls in this iteration.{Colors.ENDC}")
         print(f"{Colors.YELLOW}Would you like to continue allowing the agent to make more changes?{Colors.ENDC}")
         choice = input(f"{Colors.GREEN}Continue? (y/n): {Colors.ENDC}")
-        
+
         if choice.lower() != 'y':
             await print_agent_information(agent, "status", "User requested to stop after reaching tool call limit.")
             return False, max_tool_calls_per_iteration
@@ -824,24 +827,24 @@ async def check_tool_call_limits(
             # Increase the limit for this iteration
             new_limit = max_tool_calls_per_iteration + 5
             await print_agent_information(
-                agent, 
-                "status", 
+                agent,
+                "status",
                 f"Continuing with tool calls. New limit is {new_limit}."
             )
             return True, new_limit
-    
+
     return True, max_tool_calls_per_iteration
 
 
 async def get_user_input(prompt: str) -> str:
     """
     Get input from the user with colorized prompt.
-    
+
     Args:
         prompt: The prompt to display to the user
-        
+
     Returns:
-        The user's input
+        The user's inpu
     """
     return input(f"{Colors.GREEN}{prompt} {Colors.ENDC}")
 
@@ -849,34 +852,34 @@ async def get_user_input(prompt: str) -> str:
 async def trim_context_history(user_info: Dict[str, Any]) -> Dict[str, Any]:
     """
     Trim the history in user_info to prevent context overflow.
-    
+
     Args:
         user_info: The user context information
-        
+
     Returns:
         Updated user_info with trimmed history
     """
     # Limit length of tool calls history
     if isinstance(user_info["tool_calls"], list) and len(user_info["tool_calls"]) > 10:
         user_info["tool_calls"] = user_info["tool_calls"][-10:]
-    
+
     # Limit length of command history
     if isinstance(user_info["command_history"], list) and len(user_info["command_history"]) > 5:
         user_info["command_history"] = user_info["command_history"][-5:]
-    
+
     return user_info
 
 
 async def show_progress_messages(
     agent: Any,
-    auto_continue: bool, 
-    response: str, 
-    iteration: int, 
+    auto_continue: bool,
+    response: str,
+    iteration: int,
     max_iterations: int
 ) -> None:
     """
     Show appropriate progress messages based on the current state.
-    
+
     Args:
         agent: The agent instance
         auto_continue: Whether the agent is in auto-continue mode
@@ -887,75 +890,76 @@ async def show_progress_messages(
     # Print a message if the task seems to be in progress
     if auto_continue and "in progress" in response.lower() and iteration < max_iterations:
         print(f"{Colors.YELLOW}Task appears to be in progress. Continuing automatically...{Colors.ENDC}")
-    
+
     # If this was the last iteration, inform the user
     if iteration >= max_iterations:
         print(f"{Colors.RED}Reached maximum iterations ({max_iterations}). Pausing.{Colors.ENDC}")
 
 
 async def determine_next_steps(
-    agent: Any, 
-    response: str, 
+    agent: Any,
+    response: str,
     auto_continue: bool,
     iteration: int
 ) -> NextAction:
     """
     Determine the next steps based on the agent's response.
-    
+
     Args:
         agent: The agent instance
-        response: The agent's response
+        response: The response from the agent
         auto_continue: Whether auto-continue is enabled
         iteration: Current iteration number
-        
+
     Returns:
         A NextAction instance indicating what to do next
     """
     # Check if task is complete
     if is_task_complete(response):
         return NextAction(ActionType.COMPLETE)
-    
+
     # Check if agent is asking for input
-    user_prompt = await check_for_user_input_request(agent, response)
-    if user_prompt:
+    user_input_request = await check_for_user_input_request(agent, response)
+    if user_input_request and isinstance(user_input_request, str):
         await print_agent_information(agent, "status", "The agent is requesting additional information from you.")
-        return NextAction(ActionType.USER_INPUT, prompt=user_prompt)
-    
+        return NextAction(ActionType.USER_INPUT, prompt=user_input_request)
+
     # Determine continuation based on mode
     if auto_continue:
         return NextAction(ActionType.AUTO_CONTINUE)
     else:
-        return NextAction(ActionType.MANUAL_CONTINUE, 
-                         prompt="Your input: ")
+        # Ensure prompt is explicitly a string to avoid type error
+        input_prompt: str = "Your input: "
+        return NextAction(ActionType.MANUAL_CONTINUE, prompt=input_prompt)
 
 
 async def handle_iteration_error(
     agent: Any,
-    error: Exception, 
-    iteration: int, 
+    error: Exception,
+    iteration: int,
     user_info: Dict[str, Any]
 ) -> str:
     """
     Handle exceptions that occur during an iteration.
-    
+
     Args:
         agent: The agent instance
         error: The exception that occurred
         iteration: Current iteration number
         user_info: User context information to update
-        
+
     Returns:
         Action to take: "RETRY", "CONTINUE_WITH_ERROR", or "END"
     """
     await print_agent_information(agent, "error", f"Error in iteration {iteration}", str(error))
     user_info["recent_errors"].append(str(error))
-    
+
     print(f"\n{Colors.YELLOW}Options:{Colors.ENDC}")
     print(f"{Colors.YELLOW}1. Retry this iteration{Colors.ENDC}")
     print(f"{Colors.YELLOW}2. Continue with error information{Colors.ENDC}")
     print(f"{Colors.YELLOW}3. End the conversation{Colors.ENDC}")
     choice = input(f"{Colors.GREEN}Enter your choice (1-3): {Colors.ENDC}")
-    
+
     if choice == "1":
         return "RETRY"
     elif choice == "2":
@@ -971,32 +975,32 @@ async def process_query_and_get_response(
 ) -> Tuple[str, float]:
     """
     Process a query and get the agent's response.
-    
+
     Args:
         agent: The agent instance
         query: The query to send
         user_info: User context information
-        
+
     Returns:
         Tuple of (response, duration)
     """
     # Show thinking animation
     await print_agent_information(agent, "thinking", "Processing your request...")
-    
-    # Get agent response with Cursor-like system prompt
+
+    # Get agent response with Cursor-like system promp
     start_time = time.time()
-    
+
     # Use the enhanced system prompt (like Cursor does)
     response = await run_single_query(
         agent, query, user_info, use_custom_system_prompt=True
     )
-    
+
     duration = time.time() - start_time
-    
+
     # Print full response
     await print_agent_information(agent, "response", response)
     await print_agent_information(agent, "status", f"Response generated in {duration:.2f} seconds")
-    
+
     return response, duration
 
 

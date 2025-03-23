@@ -83,3 +83,5 @@ temp/
 venv_test/
 .cursorrules
 examples/demo_files/*
+test_permission/*
+test_permission
