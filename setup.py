@@ -12,7 +12,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/civai-technologies/cursor-agent",
-    packages=find_packages(),
+    packages=["cursor_agent", "agent", "agent.tools"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
@@ -34,6 +34,7 @@ setup(
         "typing-extensions==4.8.0",
         "requests==2.31.0",
         "urllib3==2.0.7",
+        "httpx<0.26.0",
     ],
     extras_require={
         "dev": [
