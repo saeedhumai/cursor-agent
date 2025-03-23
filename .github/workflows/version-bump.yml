@@ -58,11 +58,8 @@ jobs:
         echo "search = current_version = \"{current_version}\"" >> .bumpversion.cfg
         echo "replace = current_version = \"{new_version}\"" >> .bumpversion.cfg
         
-        # Add the config file to git tracking
-        git add .bumpversion.cfg
-        
-        # Now run bump2version
-        bump2version ${{ github.event.inputs.version_type }}
+        # Now run bump2version with --allow-dirty flag
+        bump2version --allow-dirty ${{ github.event.inputs.version_type }}
         
     - name: Get new version
       id: get_version
