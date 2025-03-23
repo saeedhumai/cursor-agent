@@ -20,6 +20,7 @@ This AI Agent implementation provides a comprehensive set of capabilities:
 - **Function Calling**: Invoke registered tools and functions based on user requests
 - **Conversational Context**: Maintain a conversation history for coherent back-and-forth interactions
 - **Project-Aware Responses**: Consider project context when answering questions
+- **Permission System**: Secure permission handling for file operations and command execution
 
 ### Tool Functions
 
@@ -50,6 +51,7 @@ All tools are implemented with actual functionality and can be extended with cus
 - [Usage Examples](#usage-examples)
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
+- [Permission System](#permission-system)
 - [Contributing](#contributing)
 - [API Documentation](#api-documentation)
 - [Advanced Usage](#advanced-usage)
@@ -319,17 +321,32 @@ cursor-agent/
 │   ├── claude_agent.py      # Claude-specific implementation
 │   ├── openai_agent.py      # OpenAI-specific implementation
 │   ├── factory.py           # Agent factory function
+│   ├── permissions.py       # Permission system implementation
+│   ├── interact.py          # Interactive mode utilities
 │   └── tools/               # Tool implementations
 │       ├── __init__.py      # Tool exports
 │       ├── file_tools.py    # File operations
 │       ├── search_tools.py  # Search functionalities
-│       └── system_tools.py  # System commands
+│       ├── system_tools.py  # System commands
+│       └── register_tools.py # Tool registration utilities
+├── cursor_agent/            # Package directory for pip installation
+│   ├── __init__.py          # Package exports
+│   └── agent/               # Re-exports of agent functionality
+├── docs/                    # Documentation
+│   └── permissions_guide.md # Permission system documentation
 ├── examples/                # Example usage scripts
-│   ├── chat_demo.py         # Simple chat example
-│   ├── file_tools_demo.py   # File operations example
-│   ├── interactive_demo.py  # Interactive agent session
-│   └── ...
+│   ├── basic_usage.py       # Simple API usage example
+│   ├── chat_conversation_example.py  # Conversation example
+│   ├── code_search_example.py  # Code search demonstration
+│   ├── file_manipulation_example.py  # File tools example
+│   ├── interactive_mode_example.py  # Interactive session demo
+│   ├── permission_example.py  # Permission system demonstration
+│   ├── simple_task_example.py  # Basic task completion
+│   ├── utils.py             # Example utilities
+│   └── demo_project/        # Demo project for examples
 ├── tests/                   # Unit and integration tests
+│   ├── test_permissions.py  # Permission system tests
+│   └── ...                  # Other test files
 ├── .env.example             # Example environment variables
 ├── .gitignore               # Git ignore patterns
 ├── CODE_OF_CONDUCT.md       # Code of conduct for contributors
@@ -338,8 +355,10 @@ cursor-agent/
 ├── README.md                # This file
 ├── SECURITY.md              # Security policy
 ├── constraints.md           # Implementation constraints
+├── pyproject.toml           # Project configuration
 ├── requirements.txt         # Project dependencies
 ├── run_tests.py             # Test runner script
+├── run_ci_checks.sh         # CI check script
 └── setup.py                 # Package installation
 ```
 
@@ -363,14 +382,88 @@ When creating an agent, you can customize its behavior:
 
 ```python
 from cursor_agent.agent import create_agent
+from cursor_agent.agent.permissions import PermissionOptions
+
+# Create permission options
+permissions = PermissionOptions(
+    yolo_mode=True,
+    command_allowlist=["ls", "echo", "git"],
+    command_denylist=["rm -rf", "sudo"],
+    delete_file_protection=True
+)
 
 agent = create_agent(
     model='claude-3-5-sonnet-latest',  # Specific model to use (determines the agent type)
     temperature=0.2,                    # Creativity level
     system_prompt=None,                 # Custom system prompt
-    tools=None                          # Custom tools dictionary
+    tools=None,                         # Custom tools dictionary
+    permission_options=permissions      # Permission configuration
 )
 ```
+
+## 🔐 Permission System
+
+The CursorAgent includes a robust permission system for secure handling of system operations:
+
+### Key Features
+
+- **Secure by Default**: All file modifications and command executions require permission
+- **YOLO Mode**: Optional mode for automatic approval of operations (with configurable rules)
+- **Command Filtering**: Allowlist/denylist for controlling which commands can run automatically
+- **File Deletion Protection**: Special protection for file deletion operations
+- **Customizable UI**: Flexible permission request interface adaptable to different environments
+
+### Basic Usage
+
+```python
+from cursor_agent.agent import create_agent
+from cursor_agent.agent.permissions import PermissionOptions
+
+# Create an agent with default permissions (requires confirmation for all operations)
+permissions = PermissionOptions(yolo_mode=False)
+agent = create_agent(
+    model='claude-3-5-sonnet-latest',
+    permission_options=permissions
+)
+
+# Create an agent with YOLO mode (many operations auto-approved)
+permissions = PermissionOptions(
+    yolo_mode=True,
+    command_allowlist=["ls", "echo", "git"],
+    delete_file_protection=True
+)
+agent = create_agent(
+    model='claude-3-5-sonnet-latest',
+    permission_options=permissions
+)
+```
+
+### Custom Permission Handlers
+
+The permission system can be adapted to different UI environments:
+
+```python
+from cursor_agent.agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+
+# Create a custom permission handler for a GUI application
+def gui_permission_handler(request: PermissionRequest) -> PermissionStatus:
+    # Implement GUI-based permission dialog
+    # ...
+    return PermissionStatus.GRANTED  # or DENIED
+
+# Create permission options with custom handler
+permissions = PermissionOptions(
+    yolo_mode=False,
+    permission_callback=gui_permission_handler
+)
+
+agent = create_agent(
+    model='claude-3-5-sonnet-latest',
+    permission_options=permissions
+)
+```
+
+For comprehensive documentation on the permission system, see [permissions_guide.md](docs/permissions_guide.md).
 
 ## 🤝 Contributing
 
