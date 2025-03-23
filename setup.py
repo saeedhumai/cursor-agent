@@ -31,7 +31,7 @@ file_replacement = lambda m: f'[{m.group(1)}]({repo_url}/blob/{branch}/{m.group(
 long_description = re.sub(file_pattern, file_replacement, long_description)
 
 setup(
-    name="cursor-agent",
+    name="cursor-agent-tools",
     version="0.1.7",
     author="Nifemi Alpine",
     author_email="hello@civai.co",
