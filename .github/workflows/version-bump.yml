@@ -47,10 +47,19 @@ jobs:
         echo "current_version = $(python setup.py --version)" >> .bumpversion.cfg
         echo "commit = True" >> .bumpversion.cfg
         echo "tag = True" >> .bumpversion.cfg
+        echo "parse = (?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)" >> .bumpversion.cfg
+        echo "serialize = {major}.{minor}.{patch}" >> .bumpversion.cfg
         echo "" >> .bumpversion.cfg
         echo "[bumpversion:file:setup.py]" >> .bumpversion.cfg
         echo "search = version=\"{current_version}\"" >> .bumpversion.cfg
         echo "replace = version=\"{new_version}\"" >> .bumpversion.cfg
+        echo "" >> .bumpversion.cfg
+        echo "[bumpversion:file:pyproject.toml]" >> .bumpversion.cfg
+        echo "search = current_version = \"{current_version}\"" >> .bumpversion.cfg
+        echo "replace = current_version = \"{new_version}\"" >> .bumpversion.cfg
+        
+        # Add the config file to git tracking
+        git add .bumpversion.cfg
         
         # Now run bump2version
         bump2version ${{ github.event.inputs.version_type }}
