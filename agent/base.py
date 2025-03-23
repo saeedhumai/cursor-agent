@@ -67,10 +67,10 @@ class BaseAgent(ABC):
     @abstractmethod
     def _prepare_tools(self) -> Any:
         """
-        Format the registered tools into the format expected by the provider's API.
+        Format the registered tools into the format expected by the model's API.
 
         Returns:
-            Tools in the format expected by the provider
+            Tools in the format expected by the model
         """
         pass
 

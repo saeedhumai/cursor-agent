@@ -35,7 +35,7 @@ def is_real_api_key(api_key: Optional[str], provider: str) -> bool:
 
     Args:
         api_key: The API key to check
-        provider: The API provider ('anthropic' or 'openai')
+        provider: The API provider ('anthropic' or 'openai') - used to determine expected key format
 
     Returns:
         True if the key looks real, False otherwise
@@ -60,9 +60,9 @@ def is_real_api_key(api_key: Optional[str], provider: str) -> bool:
         return False
 
     # Check key format per provider
-    if provider == "anthropic":
+    if provider == "anthropic":  # For Claude models
         return api_key.startswith(("sk-ant-", "sk-")) and len(api_key) > 20
-    elif provider == "openai":
+    elif provider == "openai":  # For GPT models
         return api_key.startswith(("sk-", "org-")) and len(api_key) > 20
 
     return False

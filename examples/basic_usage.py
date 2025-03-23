@@ -33,18 +33,18 @@ async def main():
         print("Error: No API keys found. Please set either ANTHROPIC_API_KEY or OPENAI_API_KEY.")
         return
 
-    # Determine which agent(s) to create based on available API keys
-    providers = []
+    # Determine which models to use based on available API keys
+    models = []
     if anthropic_key:
-        providers.append("claude")
+        models.append("claude-3-5-sonnet-latest")
     if openai_key:
-        providers.append("openai")
+        models.append("gpt-4o")
 
-    for provider in providers:
-        print(f"\n{'='*20}\nUsing {provider.upper()} provider\n{'='*20}\n")
+    for model in models:
+        print(f"\n{'='*20}\nUsing {model} model\n{'='*20}\n")
 
-        # Create an agent with the current provider
-        agent = create_agent(provider=provider)
+        # Create an agent with the current model
+        agent = create_agent(model=model)
 
         # Sample user query - asking for a simple code snippet
         user_query = "Create a Python function that checks if a string is a palindrome"
@@ -55,7 +55,7 @@ async def main():
             response = await agent.chat(user_query)
             print(f"Agent Response:\n{response}\n")
         except Exception as e:
-            print(f"Error with {provider} agent: {str(e)}")
+            print(f"Error with {model} agent: {str(e)}")
 
         # Sample query with code modification
         if Path("example_code.py").exists():
@@ -91,7 +91,7 @@ async def main():
                 with open("example_code.py", "r") as f:
                     print(f.read())
         except Exception as e:
-            print(f"Error with {provider} agent: {str(e)}")
+            print(f"Error with {model} agent: {str(e)}")
 
     # Clean up example file
     if Path("example_code.py").exists():

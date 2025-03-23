@@ -55,10 +55,9 @@ python chat_demo.py --non-interactive
 
 You can configure the demos by setting environment variables:
 
-- `ANTHROPIC_API_KEY`: Your Anthropic API key (for Claude)
+- `ANTHROPIC_API_KEY`: Your Anthropic API key (for Claude models)
 - `OPENAI_API_KEY`: Your OpenAI API key
-- `PROVIDER`: The provider to use (claude or openai)
-- `MODEL`: The specific model to use with the provider
+- `MODEL`: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
 
 ## Creating Your Own Examples
 

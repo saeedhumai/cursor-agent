@@ -109,7 +109,7 @@ async def main(non_interactive=False, auto_continue=False):
 
         # Run the interactive agent to create the Todo API
         await run_agent_interactive(
-            provider="claude",
+            model="claude-3-5-sonnet-latest",
             initial_query=TODO_API_TASK,
             max_iterations=max_iterations,
             auto_continue=auto_continue or non_interactive,

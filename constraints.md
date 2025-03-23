@@ -2,16 +2,16 @@
 
 This document outlines the constraints of the AI Agent implementation and provides workarounds for known limitations.
 
-## Provider-Specific Constraints
+## Model-Specific Constraints
 
-### Claude (Anthropic) Constraints
+### Claude (Anthropic) Models Constraints
 - **Constraint**: Claude has a context window limit (up to 200K tokens for Claude 3 Opus) that restricts the amount of code and conversation history that can be processed.
 - **Workaround**: Implement conversation summarization and prune history when approaching limits.
 
 - **Constraint**: Claude has specific model versions that may not be backward compatible, and the API structure for tools can change between versions.
 - **Workaround**: The implementation uses `claude-3-5-sonnet-latest` by default which is known to be stable, and provides compatibility adaptations for tool formats.
 
-### OpenAI Constraints
+### OpenAI Models Constraints
 - **Constraint**: OpenAI models have varying context window limits (16K-128K tokens depending on the model) that may restrict large codebases.
 - **Workaround**: Be selective with context provided and implement automatic code chunking for large files.
 
@@ -44,8 +44,8 @@ This document outlines the constraints of the AI Agent implementation and provid
 ## Function Calling Constraints
 
 ### Tool Implementation Differences
-- **Constraint**: Claude and OpenAI have different function calling implementations and formats.
-- **Workaround**: The base agent abstracts these differences through provider-specific implementations of `_prepare_tools()` and `_execute_tool_calls()`.
+- **Constraint**: Different model families (Claude and OpenAI) have different function calling implementations and formats.
+- **Workaround**: The base agent abstracts these differences through model-specific implementations of `_prepare_tools()` and `_execute_tool_calls()`.
 
 ### Default Tool Implementation
 - **Constraint**: The tools provided need to handle edge cases and file system interactions safely.
@@ -174,8 +174,8 @@ This document outlines the constraints of the AI Agent implementation and provid
 
 ## Future Improvements
 
-- Implement streaming responses for both Claude and OpenAI
-- Add support for more providers (e.g., Gemini, Llama, etc.)
+- Implement streaming responses for both Claude and OpenAI models
+- Add support for more model families (e.g., Gemini, Llama, etc.)
 - Create a web interface for easier interaction
 - Add authentication and multi-user support
 - Implement vector embedding-based codebase search

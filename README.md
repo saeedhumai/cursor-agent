@@ -109,7 +109,7 @@ from cursor_agent.agent import create_agent
 
 async def main():
     # Create a Claude agent instance
-    agent = create_agent(provider='claude')
+    agent = create_agent(model='claude-3-5-sonnet-latest')
     
     # Chat with the agent
     response = await agent.chat("Create a Python function to calculate Fibonacci numbers")
@@ -128,11 +128,11 @@ import asyncio
 from cursor_agent.agent import create_agent
 
 # Use Claude
-claude_agent = create_agent(provider='claude')
+claude_agent = create_agent(model='claude-3-5-sonnet-latest')
 response = await claude_agent.chat("What's a good way to implement a cache in Python?")
 
 # Use OpenAI
-openai_agent = create_agent(provider='openai')
+openai_agent = create_agent(model='gpt-4o')
 response = await openai_agent.chat("What's a good way to implement a cache in Python?")
 ```
 
@@ -158,7 +158,6 @@ async def main():
     
     # Create agent with custom system prompt
     coding_tutor = create_agent(
-    provider='claude',
         model='claude-3-5-sonnet-latest',
         system_prompt=custom_system_prompt
     )
@@ -192,14 +191,13 @@ from cursor_agent.main import run_agent_interactive
 
 async def main():
     # Parameters:
-    # - provider: 'claude' or 'openai'
+    # - model: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
     # - initial_query: The task description
-    # - model: Optional specific model to use
     # - max_iterations: Maximum number of steps (default 10)
     # - auto_continue: Whether to continue automatically without user input (default True)
     
     await run_agent_interactive(
-        provider='claude',
+        model='claude-3-5-sonnet-latest',
         initial_query='Create a simple web scraper that extracts headlines from a news website',
         max_iterations=15
         # auto_continue=True is the default - agent continues automatically
@@ -269,7 +267,7 @@ This adaptive limit ensures the agent doesn't make too many changes without your
 ```python
 from cursor_agent.agent import create_agent
 
-agent = create_agent(provider='claude')
+agent = create_agent(model='claude-3-5-sonnet-latest')
 
 user_info = {
     "open_files": ["src/main.py", "src/utils.py"],
@@ -287,7 +285,7 @@ response = await agent.chat("Fix the bug in the main function", user_info=user_i
 ```python
 from cursor_agent.agent import create_agent
 
-agent = create_agent(provider='claude')
+agent = create_agent(model='claude-3-5-sonnet-latest')
 
 def custom_tool(param1, param2):
     # Tool implementation
@@ -366,11 +364,10 @@ When creating an agent, you can customize its behavior:
 from cursor_agent.agent import create_agent
 
 agent = create_agent(
-    provider='claude',               # 'claude' or 'openai'
-    model='claude-3-5-sonnet-latest',  # Specific model to use
-    temperature=0.2,                 # Creativity level
-    system_prompt=None,              # Custom system prompt
-    tools=None                       # Custom tools dictionary
+    model='claude-3-5-sonnet-latest',  # Specific model to use (determines the agent type)
+    temperature=0.2,                    # Creativity level
+    system_prompt=None,                 # Custom system prompt
+    tools=None                          # Custom tools dictionary
 )
 ```
 
@@ -395,18 +392,16 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 from cursor_agent.agent import create_agent
 
 def create_agent(
-    provider: str = "claude",
-    model: Optional[str] = None,
+    model: str,
     temperature: Optional[float] = None,
     system_prompt: Optional[str] = None,
     tools: Optional[Dict] = None,
 ) -> BaseAgent:
     """
-    Create an agent instance based on the specified provider.
+    Create an agent instance based on the specified model.
     
     Args:
-        provider: The provider to use (claude or openai)
-        model: The specific model to use
+        model: The model to use (e.g. 'claude-3-5-sonnet-latest', 'gpt-4o')
         temperature: The temperature setting for generation
         system_prompt: Custom system prompt to use
         tools: Custom tools dictionary
@@ -435,7 +430,7 @@ class BaseAgent:
         """Register a custom tool with the agent."""
         
     async def _prepare_tools(self) -> Dict:
-        """Prepare tools for the provider API."""
+        """Prepare tools for the model's API format."""
         
     async def _execute_tool_calls(self, tool_calls: List[Dict]) -> List[Dict]:
         """Execute tool calls and return results."""
@@ -454,7 +449,7 @@ Tools are Python functions registered with the agent. The cursor-agent library s
 ```python
 from cursor_agent.agent import create_agent
 
-agent = create_agent(provider='claude')
+agent = create_agent(model='claude-3-5-sonnet-latest')
 
 def database_query(query: str, connection_string: str):
     """Execute a database query and return results."""
@@ -481,7 +476,7 @@ agent.register_tool(
 from cursor_agent.agent import create_agent
 import requests
 
-agent = create_agent(provider='claude')
+agent = create_agent(model='claude-3-5-sonnet-latest')
 
 def fetch_weather(location: str, units: str = "metric"):
     """Fetch current weather data for a location."""
@@ -515,7 +510,7 @@ from cursor_agent.agent import create_agent
 import pandas as pd
 import json
 
-agent = create_agent(provider='claude')
+agent = create_agent(model='claude-3-5-sonnet-latest')
 
 def analyze_csv(file_path: str, operations: list):
     """Perform analytical operations on a CSV file."""
@@ -567,7 +562,7 @@ For a detailed list of constraints and workarounds, see the [constraints.md](con
 ## 🛣️ Roadmap
 
 - Streaming responses
-- Support for more providers (e.g., Gemini, Llama, etc.)
+- Support for more model families (e.g., Gemini, Llama, etc.)
 - Web interface
 - Multi-user support with authentication
 - Vector-based codebase search

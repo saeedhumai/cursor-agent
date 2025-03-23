@@ -238,20 +238,17 @@ async def run_single_query(agent, query, user_info=None, use_custom_system_promp
 
 
 async def run_agent_interactive(
-    provider: str,
-    initial_query: str,
-    model: str = None,
+    model: str = "claude-3-5-sonnet-latest",
+    initial_query: str = "",
     max_iterations: int = 10,
     auto_continue: bool = True,
 ):
     """
-    Run the agent in an interactive mode that allows for multi-step tasks.
-    This implementation mirrors how Cursor's agent actually works.
+    Run the agent in interactive mode, allowing back-and-forth conversation.
 
     Args:
-        provider: The provider to use ('claude' or 'openai')
+        model: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
         initial_query: The initial task/query to send to the agent
-        model: Optional model to use
         max_iterations: Maximum number of iterations to perform
         auto_continue: If True, continue automatically; otherwise prompt user after each step
     """
@@ -261,8 +258,8 @@ async def run_agent_interactive(
         if details:
             print(f"  {details}")
     
-    await print_status_before_agent(f"Creating {provider} agent...")
-    agent = create_agent(provider=provider, model=model)
+    await print_status_before_agent(f"Creating agent with model {model}...")
+    agent = create_agent(model=model)
     agent.system_prompt = CURSOR_SYSTEM_PROMPT
     agent.register_default_tools()
     
@@ -743,14 +740,16 @@ def update_workspace_state(user_info, created_or_modified_files):
     return user_info
 
 
-async def run_agent_single(provider: str, query: str, model: str = None):
+async def run_agent_chat(
+    model: str = "claude-3-5-sonnet-latest",
+    query: str = "",
+):
     """
-    Run the agent with a single query (original behavior).
+    Run a single agent chat without interactive mode.
 
     Args:
-        provider: The provider to use ('claude' or 'openai')
+        model: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
         query: The query to send to the agent
-        model: Optional model to use
     """
     # Create a simple fallback print function for before the agent is initialized
     async def print_status_before_agent(message, details=None):
@@ -758,11 +757,11 @@ async def run_agent_single(provider: str, query: str, model: str = None):
         if details:
             print(f"  {details}")
     
-    await print_status_before_agent(f"Creating {provider} agent...")
-    agent = create_agent(provider=provider, model=model)
+    await print_status_before_agent(f"Creating agent with model {model}...")
+    agent = create_agent(model=model)
     agent.register_default_tools()
 
-    await print_agent_information(agent, "status", f"Sending query to {provider} agent", query)
+    await print_agent_information(agent, "status", f"Sending query to agent", query)
     response = await agent.chat(query)
 
     await print_agent_information(agent, "response", response)
@@ -776,14 +775,12 @@ async def main():
         if details:
             print(f"  {details}")
             
-    parser = argparse.ArgumentParser(description="Run the AI Agent with different providers")
+    parser = argparse.ArgumentParser(description="Run the AI Agent with different models")
     parser.add_argument(
-        "--provider",
-        choices=["claude", "openai"],
-        default="claude",
-        help="The provider to use (claude or openai)",
+        "--model",
+        default="claude-3-5-sonnet-latest",
+        help="The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')",
     )
-    parser.add_argument("--model", help="The model to use (provider-specific)")
     parser.add_argument(
         "--query",
         default="Create a Python function to calculate the factorial of a number",
@@ -808,7 +805,7 @@ async def main():
     args = parser.parse_args()
 
     # Ensure API keys are set
-    if args.provider == "claude":
+    if args.model.startswith("claude-"):
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
         if not anthropic_key:
             await print_error(
@@ -823,7 +820,7 @@ async def main():
             )
             return
 
-    if args.provider == "openai":
+    if args.model.startswith("gpt-"):
         openai_key = os.environ.get("OPENAI_API_KEY")
         if not openai_key:
             await print_error(
@@ -840,10 +837,10 @@ async def main():
 
     if args.interactive:
         await run_agent_interactive(
-            args.provider, args.query, args.model, args.max_iterations, args.auto_continue
+            args.model, args.query, args.max_iterations, args.auto_continue
         )
     else:
-        await run_agent_single(args.provider, args.query, args.model)
+        await run_agent_chat(args.model, args.query)
 
 
 if __name__ == "__main__":

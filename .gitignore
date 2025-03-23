@@ -81,3 +81,4 @@ temp/
 *.log 
 
 venv_test/
+.cursorrules

@@ -23,10 +23,10 @@ except ImportError:
     def is_real_api_key(api_key, provider):
         if not api_key:
             return False
-        # Simple validation checks
-        if provider == "anthropic":
+        # Simple validation checks - provider is used to determine the API key format
+        if provider == "anthropic":  # Claude models
             return api_key.startswith(("sk-ant-", "sk-")) and len(api_key) > 20
-        elif provider == "openai":
+        elif provider == "openai":   # GPT models
             return api_key.startswith("sk-") and len(api_key) > 20
         return False
 
