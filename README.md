@@ -70,7 +70,7 @@ All tools are implemented with actual functionality and can be extended with cus
 ### Via pip
 
 ```bash
-pip install cursor-agent
+pip install cursor-agent-tools
 ```
 
 ### From Source
