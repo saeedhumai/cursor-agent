@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="cursor-agent",
-    version="0.1.3",
+    version="0.1.4",
     author="Nifemi Alpine",
     author_email="hello@civai.co",
     description="A Python-based AI agent that replicates Cursor's coding assistant capabilities",
