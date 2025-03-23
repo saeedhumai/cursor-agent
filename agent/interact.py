@@ -9,8 +9,9 @@ allowing multi-step problem solving and task completion.
 import os
 import sys
 import time
+from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from dotenv import load_dotenv
 
@@ -27,6 +28,27 @@ else:
     env_path = Path(__file__).resolve().parent / ".env"
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
+
+# Add a NextAction class to better represent different continuation options
+class ActionType(Enum):
+    """Enumeration of possible next action types in the agent conversation."""
+    COMPLETE = "complete"           # Task is complete, exit the loop
+    USER_INPUT = "user_input"       # Agent needs user input to continue
+    AUTO_CONTINUE = "auto_continue" # Continue automatically
+    MANUAL_CONTINUE = "manual"      # Prompt for user direction
+    
+class NextAction:
+    """Represents the next action to take in the agent conversation."""
+    def __init__(self, action_type: ActionType, prompt: Optional[str] = None):
+        """
+        Initialize a NextAction instance.
+        
+        Args:
+            action_type: The type of action to take next
+            prompt: Optional prompt for user input (if action_type is USER_INPUT)
+        """
+        self.action_type = action_type
+        self.prompt = prompt
 
 # Define enhanced system prompt similar to what Cursor uses
 CURSOR_SYSTEM_PROMPT = """
@@ -336,160 +358,82 @@ First, I'll create a plan for how to approach this task, then implement it step 
         )
 
         try:
-            # Update user_info with current workspace state - similar to how Cursor updates context
+            # 1. Update workspace state
             user_info = update_workspace_state(user_info, created_or_modified_files)
-
-            # Show thinking animation
-            await print_agent_information(agent, "thinking", "Processing your request...")
-
-            # Get agent response with Cursor-like system prompt
-            start_time = time.time()
-
-            # Use the enhanced system prompt (like Cursor does)
-            response = await run_single_query(
-                agent, query, user_info, use_custom_system_prompt=True
-            )
-
-            duration = time.time() - start_time
-
-            # Print full response
-            await print_agent_information(agent, "response", response)
-            await print_agent_information(agent, "status", f"Response generated in {duration:.2f} seconds")
-
-            # Extract and track tool calls from the response
-            # This mimics how Cursor extracts and processes tool calls
+            
+            # 2. Process query and get response
+            response, duration = await process_query_and_get_response(agent, query, user_info)
+            
+            # 3. Process tool calls (returns updated tool call count)
             tool_calls = extract_tool_calls(response)
-            for tool_call in tool_calls:
-                tool_name = tool_call.get("tool", "")
-                args = tool_call.get("args", {})
-
-                # Ensure tool_name is a string
-                await print_agent_information(agent, "tool_call", str(tool_name), args)
-
-                # Make sure tool_calls is a list before appending
-                if isinstance(user_info["tool_calls"], list):
-                    user_info["tool_calls"].append(tool_call)
-                else:
-                    user_info["tool_calls"] = [tool_call]
-
-                current_iteration_tool_calls += 1
-
-                # Track file operations to update open_files
-                if tool_call.get("tool") == "create_file" or tool_call.get("tool") == "edit_file":
-                    file_path = tool_call.get("args", {}).get("file_path") or tool_call.get(
-                        "args", {}
-                    ).get("target_file")
-                    if file_path:
-                        created_or_modified_files.add(file_path)
-                        await print_agent_information(agent, "file_operation", f"Modified {file_path}")
-
-                # Track terminal commands
-                if tool_call.get("tool") == "run_terminal_cmd":
-                    command = tool_call.get("args", {}).get("command")
-                    if command:
-                        # Make sure command_history is a list before appending
-                        if isinstance(user_info["command_history"], list):
-                            user_info["command_history"].append(command)
-                        else:
-                            user_info["command_history"] = [command]
-                        # Convert command to string to ensure it's a valid type
-                        await print_agent_information(agent, "command", f"Executed command: {command}")
-
-                # Check if we've reached the tool call limit for this iteration
-                if current_iteration_tool_calls >= max_tool_calls_per_iteration:
-                    await print_agent_information(agent, "status", f"Reached maximum of {max_tool_calls_per_iteration} tool calls in this iteration")
-                    print(f"\n{Colors.YELLOW}The agent has made {current_iteration_tool_calls} tool calls in this iteration.{Colors.ENDC}")
-                    print(f"{Colors.YELLOW}Would you like to continue allowing the agent to make more changes?{Colors.ENDC}")
-                    choice = input(f"{Colors.GREEN}Continue? (y/n): {Colors.ENDC}")
-                    if choice.lower() != 'y':
-                        await print_agent_information(agent, "status", "User requested to stop after reaching tool call limit.")
-                        # Continue to the next part of the current iteration, but don't perform more tool calls
-                        break
-                    else:
-                        # Instead of resetting the counter, just increase the limit for this iteration
-                        max_tool_calls_per_iteration += 5
-                        await print_agent_information(agent, "status", f"Continuing with tool calls. New limit is {max_tool_calls_per_iteration}.")
-
-            # Check if task is complete
-            if is_task_complete(response):
+            current_iteration_tool_calls = await process_tool_calls(
+                agent, tool_calls, user_info, created_or_modified_files, current_iteration_tool_calls
+            )
+            
+            # 4. Check if tool call limit reached
+            continue_processing, max_tool_calls_per_iteration = await check_tool_call_limits(
+                agent, current_iteration_tool_calls, max_tool_calls_per_iteration
+            )
+            
+            if not continue_processing:
+                # Skip to next iteration if user doesn't want to continue
+                iteration += 1
+                current_iteration_tool_calls = 0
+                continue
+            
+            # 5. Determine next steps
+            next_action = await determine_next_steps(agent, response, auto_continue, iteration)
+            
+            # 6. Handle different next actions
+            if next_action.action_type == ActionType.COMPLETE:
+                # Task complete, exit loop
                 await print_agent_information(agent, "status", "Task has been completed successfully!")
                 break
-
-            # Check if the agent is explicitly asking for user input
-            user_prompt = await check_for_user_input_request(agent, response)
-            if user_prompt:
-                await print_agent_information(agent, "status", "The agent is requesting additional information from you.")
-                user_input = input(f"{Colors.GREEN}{user_prompt} {Colors.ENDC}")
-
-                # Get a continuation prompt that incorporates the user input
+                
+            elif next_action.action_type == ActionType.USER_INPUT:
+                # Get user input and create continuation
+                user_input = await get_user_input(next_action.prompt)
                 query = await get_continuation_prompt(agent, iteration, response, user_input)
-
-                # Reset tool call counter when user provides new input - this is a new logical iteration
                 current_iteration_tool_calls = 0
                 iteration += 1
                 continue
-
-            # Determine next step (with more Cursor-like continuation)
-            if auto_continue:
-                # Auto-continue with a more natural prompt generated by the agent
+                
+            elif next_action.action_type == ActionType.AUTO_CONTINUE:
+                # Auto-continue to next step
                 query = await get_continuation_prompt(agent, iteration, response)
                 await print_agent_information(agent, "status", "Automatically continuing to next step...")
                 time.sleep(2)  # Brief pause for readability
-            else:
-                # No defined objective, continuation, prompt user for direction
+                
+            elif next_action.action_type == ActionType.MANUAL_CONTINUE:
+                # Get user direction for continuation
                 await print_agent_information(agent, "response", "How can I help you further with this task? Please provide any guidance or specific requests.")
-                user_input = input(f"{Colors.GREEN}Your input: {Colors.ENDC}")
-
-                # Get a continuation prompt that incorporates the user input
+                user_input = await get_user_input(next_action.prompt)
                 query = await get_continuation_prompt(agent, iteration, response, user_input)
-
-                # Reset tool call counter when user provides new input
                 current_iteration_tool_calls = 0
                 iteration += 1
                 continue
-
+            
+            # 7. Manage context history
+            user_info = await trim_context_history(user_info)
+            
+            # 8. Show progress messages
+            await show_progress_messages(agent, auto_continue, response, iteration, max_iterations)
+            
             iteration += 1
-
-            # Limit length of history in user_info to prevent context overflow
-            # This is similar to how Cursor manages context window limits
-            if isinstance(user_info["tool_calls"], list) and len(user_info["tool_calls"]) > 10:
-                user_info["tool_calls"] = user_info["tool_calls"][-10:]
-            if isinstance(user_info["command_history"], list) and len(user_info["command_history"]) > 5:
-                user_info["command_history"] = user_info["command_history"][-5:]
-
-            # Print an informative message if the agent's response suggests a task is still in progress
-            if auto_continue and "in progress" in response.lower() and iteration < max_iterations:
-                print(f"{Colors.YELLOW}Task appears to be in progress. Continuing automatically...{Colors.ENDC}")
-
-            # If this was the last iteration, inform the user
-            if iteration >= max_iterations:
-                print(f"{Colors.RED}Reached maximum iterations ({max_iterations}). Stopping.{Colors.ENDC}")
-
-            # Check if task is complete
-            if is_task_complete(response):
-                print(f"{Colors.GREEN}Task appears to be complete!{Colors.ENDC}")
-                return response
-
+            
         except Exception as e:
-            await print_agent_information(agent, "error", f"Error in iteration {iteration}", str(e))
-            user_info["recent_errors"].append(str(e))
-
-            print(f"\n{Colors.YELLOW}Options:{Colors.ENDC}")
-            print(f"{Colors.YELLOW}1. Retry this iteration{Colors.ENDC}")
-            print(f"{Colors.YELLOW}2. Continue with error information{Colors.ENDC}")
-            print(f"{Colors.YELLOW}3. End the conversation{Colors.ENDC}")
-            choice = input(f"{Colors.GREEN}Enter your choice (1-3): {Colors.ENDC}")
-
-            if choice == "1":
-                # Just retry the same iteration
+            # 9. Handle exceptions
+            action = await handle_iteration_error(agent, e, iteration, user_info)
+            
+            if action == "RETRY":
                 continue
-            elif choice == "2":
-                # Continue but inform the agent about the error
+            elif action == "CONTINUE_WITH_ERROR":
                 query = f"There was an error in the previous step: {str(e)}. Please adjust your approach and continue."
                 iteration += 1
-            else:
+            else:  # "END"
                 break
-
+    
+    # End of conversation
     await print_agent_information(agent, "status", f"Conversation ended after {iteration-1} iterations.")
     return "Conversation complete."
 
@@ -786,6 +730,274 @@ async def run_agent_chat(
     await print_agent_information(agent, "response", response)
 
     return response
+
+
+async def process_tool_calls(
+    agent: Any,
+    tool_calls: List[Dict[str, Any]], 
+    user_info: Dict[str, Any], 
+    created_or_modified_files: set,
+    current_iteration_tool_calls: int
+) -> int:
+    """
+    Process a list of tool calls and update tracking information.
+    
+    Args:
+        agent: The agent instance
+        tool_calls: List of tool call dictionaries
+        user_info: User context information to update
+        created_or_modified_files: Set of created/modified files to update
+        current_iteration_tool_calls: Current count of tool calls in this iteration
+        
+    Returns:
+        Updated count of tool calls in this iteration
+    """
+    for tool_call in tool_calls:
+        tool_name = tool_call.get("tool", "")
+        args = tool_call.get("args", {})
+
+        # Ensure tool_name is a string
+        await print_agent_information(agent, "tool_call", str(tool_name), args)
+
+        # Make sure tool_calls is a list before appending
+        if isinstance(user_info["tool_calls"], list):
+            user_info["tool_calls"].append(tool_call)
+        else:
+            user_info["tool_calls"] = [tool_call]
+
+        current_iteration_tool_calls += 1
+
+        # Track file operations to update open_files
+        if tool_call.get("tool") == "create_file" or tool_call.get("tool") == "edit_file":
+            file_path = tool_call.get("args", {}).get("file_path") or tool_call.get(
+                "args", {}
+            ).get("target_file")
+            if file_path:
+                created_or_modified_files.add(file_path)
+                await print_agent_information(agent, "file_operation", f"Modified {file_path}")
+
+        # Track terminal commands
+        if tool_call.get("tool") == "run_terminal_cmd":
+            command = tool_call.get("args", {}).get("command")
+            if command:
+                # Make sure command_history is a list before appending
+                if isinstance(user_info["command_history"], list):
+                    user_info["command_history"].append(command)
+                else:
+                    user_info["command_history"] = [command]
+                # Convert command to string to ensure it's a valid type
+                await print_agent_information(agent, "command", f"Executed command: {command}")
+    
+    return current_iteration_tool_calls
+
+
+async def check_tool_call_limits(
+    agent: Any,
+    current_iteration_tool_calls: int, 
+    max_tool_calls_per_iteration: int
+) -> Tuple[bool, int]:
+    """
+    Check if the tool call limit has been reached and ask the user whether to continue.
+    
+    Args:
+        agent: The agent instance
+        current_iteration_tool_calls: Current count of tool calls in this iteration
+        max_tool_calls_per_iteration: Maximum allowed tool calls per iteration
+        
+    Returns:
+        Tuple of (continue_processing, new_max_limit)
+    """
+    if current_iteration_tool_calls >= max_tool_calls_per_iteration:
+        await print_agent_information(
+            agent, 
+            "status", 
+            f"Reached maximum of {max_tool_calls_per_iteration} tool calls in this iteration"
+        )
+        print(f"\n{Colors.YELLOW}The agent has made {current_iteration_tool_calls} tool calls in this iteration.{Colors.ENDC}")
+        print(f"{Colors.YELLOW}Would you like to continue allowing the agent to make more changes?{Colors.ENDC}")
+        choice = input(f"{Colors.GREEN}Continue? (y/n): {Colors.ENDC}")
+        
+        if choice.lower() != 'y':
+            await print_agent_information(agent, "status", "User requested to stop after reaching tool call limit.")
+            return False, max_tool_calls_per_iteration
+        else:
+            # Increase the limit for this iteration
+            new_limit = max_tool_calls_per_iteration + 5
+            await print_agent_information(
+                agent, 
+                "status", 
+                f"Continuing with tool calls. New limit is {new_limit}."
+            )
+            return True, new_limit
+    
+    return True, max_tool_calls_per_iteration
+
+
+async def get_user_input(prompt: str) -> str:
+    """
+    Get input from the user with colorized prompt.
+    
+    Args:
+        prompt: The prompt to display to the user
+        
+    Returns:
+        The user's input
+    """
+    return input(f"{Colors.GREEN}{prompt} {Colors.ENDC}")
+
+
+async def trim_context_history(user_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Trim the history in user_info to prevent context overflow.
+    
+    Args:
+        user_info: The user context information
+        
+    Returns:
+        Updated user_info with trimmed history
+    """
+    # Limit length of tool calls history
+    if isinstance(user_info["tool_calls"], list) and len(user_info["tool_calls"]) > 10:
+        user_info["tool_calls"] = user_info["tool_calls"][-10:]
+    
+    # Limit length of command history
+    if isinstance(user_info["command_history"], list) and len(user_info["command_history"]) > 5:
+        user_info["command_history"] = user_info["command_history"][-5:]
+    
+    return user_info
+
+
+async def show_progress_messages(
+    agent: Any,
+    auto_continue: bool, 
+    response: str, 
+    iteration: int, 
+    max_iterations: int
+) -> None:
+    """
+    Show appropriate progress messages based on the current state.
+    
+    Args:
+        agent: The agent instance
+        auto_continue: Whether the agent is in auto-continue mode
+        response: The agent's response
+        iteration: Current iteration number
+        max_iterations: Maximum iterations
+    """
+    # Print a message if the task seems to be in progress
+    if auto_continue and "in progress" in response.lower() and iteration < max_iterations:
+        print(f"{Colors.YELLOW}Task appears to be in progress. Continuing automatically...{Colors.ENDC}")
+    
+    # If this was the last iteration, inform the user
+    if iteration >= max_iterations:
+        print(f"{Colors.RED}Reached maximum iterations ({max_iterations}). Pausing.{Colors.ENDC}")
+
+
+async def determine_next_steps(
+    agent: Any, 
+    response: str, 
+    auto_continue: bool,
+    iteration: int
+) -> NextAction:
+    """
+    Determine the next steps based on the agent's response.
+    
+    Args:
+        agent: The agent instance
+        response: The agent's response
+        auto_continue: Whether auto-continue is enabled
+        iteration: Current iteration number
+        
+    Returns:
+        A NextAction instance indicating what to do next
+    """
+    # Check if task is complete
+    if is_task_complete(response):
+        return NextAction(ActionType.COMPLETE)
+    
+    # Check if agent is asking for input
+    user_prompt = await check_for_user_input_request(agent, response)
+    if user_prompt:
+        await print_agent_information(agent, "status", "The agent is requesting additional information from you.")
+        return NextAction(ActionType.USER_INPUT, prompt=user_prompt)
+    
+    # Determine continuation based on mode
+    if auto_continue:
+        return NextAction(ActionType.AUTO_CONTINUE)
+    else:
+        return NextAction(ActionType.MANUAL_CONTINUE, 
+                         prompt="Your input: ")
+
+
+async def handle_iteration_error(
+    agent: Any,
+    error: Exception, 
+    iteration: int, 
+    user_info: Dict[str, Any]
+) -> str:
+    """
+    Handle exceptions that occur during an iteration.
+    
+    Args:
+        agent: The agent instance
+        error: The exception that occurred
+        iteration: Current iteration number
+        user_info: User context information to update
+        
+    Returns:
+        Action to take: "RETRY", "CONTINUE_WITH_ERROR", or "END"
+    """
+    await print_agent_information(agent, "error", f"Error in iteration {iteration}", str(error))
+    user_info["recent_errors"].append(str(error))
+    
+    print(f"\n{Colors.YELLOW}Options:{Colors.ENDC}")
+    print(f"{Colors.YELLOW}1. Retry this iteration{Colors.ENDC}")
+    print(f"{Colors.YELLOW}2. Continue with error information{Colors.ENDC}")
+    print(f"{Colors.YELLOW}3. End the conversation{Colors.ENDC}")
+    choice = input(f"{Colors.GREEN}Enter your choice (1-3): {Colors.ENDC}")
+    
+    if choice == "1":
+        return "RETRY"
+    elif choice == "2":
+        return "CONTINUE_WITH_ERROR"
+    else:
+        return "END"
+
+
+async def process_query_and_get_response(
+    agent: Any,
+    query: str,
+    user_info: Dict[str, Any]
+) -> Tuple[str, float]:
+    """
+    Process a query and get the agent's response.
+    
+    Args:
+        agent: The agent instance
+        query: The query to send
+        user_info: User context information
+        
+    Returns:
+        Tuple of (response, duration)
+    """
+    # Show thinking animation
+    await print_agent_information(agent, "thinking", "Processing your request...")
+    
+    # Get agent response with Cursor-like system prompt
+    start_time = time.time()
+    
+    # Use the enhanced system prompt (like Cursor does)
+    response = await run_single_query(
+        agent, query, user_info, use_custom_system_prompt=True
+    )
+    
+    duration = time.time() - start_time
+    
+    # Print full response
+    await print_agent_information(agent, "response", response)
+    await print_agent_information(agent, "status", f"Response generated in {duration:.2f} seconds")
+    
+    return response, duration
 
 
 # Main entry point and argument handling remain in the original main.py file
