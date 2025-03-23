@@ -1,7 +1,34 @@
 from setuptools import setup, find_packages
+import re
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
+
+# Replace relative links with absolute GitHub URLs
+repo_url = "https://github.com/civai-technologies/cursor-agent"
+branch = "main"  # Assuming main is the default branch
+
+# Process in this order:
+# 1. First handle image links separately (which use ![ syntax)
+img_pattern = r'!\[([^\]]+)\]\((?!https?://)([^)]+)\)'
+img_replacement = lambda m: f'![{m.group(1)}]({repo_url}/raw/{branch}/{m.group(2)})'
+long_description = re.sub(img_pattern, img_replacement, long_description)
+
+# 2. Replace directory links (paths ending with /)
+dir_with_slash_pattern = r'\[([^\]]+)\]\((?!https?://|#)([^)]+/)\)'
+dir_with_slash_replacement = lambda m: f'[{m.group(1)}]({repo_url}/tree/{branch}/{m.group(2)})'
+long_description = re.sub(dir_with_slash_pattern, dir_with_slash_replacement, long_description)
+
+# 3. Replace directory links without trailing slash - looking for directories referenced in the TOC
+# This targets paths without extensions that are likely directories
+dir_pattern = r'\[([^\]]+)\]\((?!https?://|#)([^.)]+)\)'
+dir_replacement = lambda m: f'[{m.group(1)}]({repo_url}/tree/{branch}/{m.group(2)})'
+long_description = re.sub(dir_pattern, dir_replacement, long_description)
+
+# 4. Finally replace remaining file links
+file_pattern = r'\[([^\]]+)\]\((?!https?://|#)([^)]+\.[a-zA-Z0-9]+[^)]*)\)'
+file_replacement = lambda m: f'[{m.group(1)}]({repo_url}/blob/{branch}/{m.group(2)})'
+long_description = re.sub(file_pattern, file_replacement, long_description)
 
 setup(
     name="cursor-agent",

@@ -253,3 +253,9 @@ By applying these workarounds, we've maintained strong type safety throughout th
 ### Test Environment Consistency
 - **Constraint**: The CI environment may differ from local development environments, leading to inconsistent test results.
 - **Workaround**: Created a separate virtual environment for testing (`venv_test`) that closely mirrors the CI environment, ensuring tests run consistently across environments. 
+
+## PyPI Package Constraints
+
+### README.md Link Resolution
+- **Constraint**: When a package is published to PyPI, relative links in the README.md (such as links to other markdown files in the repository) will result in 404 errors since those files don't exist on PyPI.
+- **Workaround**: Modified setup.py to transform relative links to absolute GitHub URLs before packaging, ensuring all documentation links work correctly on the PyPI page. 
