@@ -42,6 +42,17 @@ jobs:
         
     - name: Bump version
       run: |
+        # Create a .bumpversion.cfg file that points to the files we need to update
+        echo "[bumpversion]" > .bumpversion.cfg
+        echo "current_version = $(python setup.py --version)" >> .bumpversion.cfg
+        echo "commit = True" >> .bumpversion.cfg
+        echo "tag = True" >> .bumpversion.cfg
+        echo "" >> .bumpversion.cfg
+        echo "[bumpversion:file:setup.py]" >> .bumpversion.cfg
+        echo "search = version=\"{current_version}\"" >> .bumpversion.cfg
+        echo "replace = version=\"{new_version}\"" >> .bumpversion.cfg
+        
+        # Now run bump2version
         bump2version ${{ github.event.inputs.version_type }}
         
     - name: Get new version
