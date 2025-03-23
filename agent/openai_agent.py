@@ -1,25 +1,12 @@
 # mypy: ignore-errors
 import json
-import os
-from typing import Any, Dict, List, Optional, cast, Callable
+from typing import Any, Dict, List, Optional, Callable, cast
 
-from openai import APIError, AsyncOpenAI, AuthenticationError, BadRequestError, RateLimitError
+from openai import AsyncOpenAI, BadRequestError, RateLimitError, APIError, AuthenticationError
 
 from .base import BaseAgent
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
-from .tools import (
-    codebase_search,
-    create_file,
-    delete_file,
-    edit_file,
-    file_search,
-    grep_search,
-    list_directory,
-    read_file,
-    register_default_tools,
-    run_terminal_command,
-    web_search,
-)
+from .tools.register_tools import register_default_tools
 
 
 class OpenAIAgent(BaseAgent):
@@ -51,15 +38,15 @@ class OpenAIAgent(BaseAgent):
         """
         super().__init__(
             api_key=api_key,
-            model=model, 
+            model=model,
             permission_options=permission_options,
             permission_callback=permission_callback
         )
-        
+
         self.temperature = temperature
         self.timeout = timeout
         self.extra_kwargs = kwargs
-        
+
         # Initialize OpenAI client
         self.client = AsyncOpenAI(api_key=api_key)
 
@@ -355,25 +342,25 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
         """
         Implementation of permission request callback for OpenAI agent.
-        
+
         In a real application, this would interact with the user to get permission.
         For now, we'll default to a console-based interaction.
-        
+
         Args:
             permission_request: The permission request object
-            
+
         Returns:
             PermissionStatus indicating whether the request is granted or denied
         """
         # If yolo mode is enabled, check is already done in PermissionManager
         if self.permission_manager.options.yolo_mode:
             return PermissionStatus.GRANTED
-            
+
         # Default implementation asks on console
         print(f"\n[PERMISSION REQUEST] {permission_request.operation}")
         print(f"Details: {json.dumps(permission_request.details, indent=2)}")
         response = input("Allow this operation? (y/n): ").strip().lower()
-        
+
         if response == 'y' or response == 'yes':
             return PermissionStatus.GRANTED
         else:

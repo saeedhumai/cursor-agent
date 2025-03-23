@@ -1,6 +1,7 @@
 import os
-from typing import Any, Dict, Optional, List
-import shutil
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..base import BaseAgent
 
 
 def read_file(
@@ -8,7 +9,7 @@ def read_file(
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     should_read_entire_file: bool = False,
-    agent=None,  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     Read the contents of a file.
@@ -62,10 +63,21 @@ def read_file(
         if end_idx < len(lines):
             summary.append(f"... {len(lines) - end_idx} lines after ...")
 
+        # For tests that expect the end_line to be the actual line number,
+        # ensure this correctly represents the last line we read
+        end_line = offset + len(content_lines) - 1
+        if end_line < offset:
+            end_line = offset
+            
+        # If we read to the end of the file due to a small file size,
+        # set end_line to the total number of lines
+        if len(content_lines) > 0 and end_idx == len(lines):
+            end_line = len(lines)
+
         return {
             "content": content,
             "start_line": offset,
-            "end_line": offset + len(content_lines) - 1,
+            "end_line": end_line,
             "summary": summary,
             "total_lines": len(lines),
         }
@@ -78,7 +90,7 @@ def edit_file(
     target_file: str,
     instructions: str,
     code_edit: str,
-    agent=None  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     Edit a file according to the provided instructions and code edit.
@@ -100,34 +112,34 @@ def edit_file(
                 "instructions": instructions,
                 "code_edit_preview": code_edit[:100] + ("..." if len(code_edit) > 100 else ""),
             }
-            
+
             if not agent.request_permission("edit_file", operation_details):
                 return {"status": "error", "message": "Permission denied to edit file"}
-        
+
         # Check if file exists
         if not os.path.exists(target_file):
             return {"status": "error", "message": f"File {target_file} does not exist"}
-            
+
         # Read the original content
         with open(target_file, "r") as f:
             original_content = f.read()
-            
+
         # Parse and apply the edit
         edited_content = apply_edit(original_content, code_edit)
-            
+
         # Write the edited content back to the file
         with open(target_file, "w") as f:
             f.write(edited_content)
-            
+
         return {"status": "success", "message": f"Successfully edited {target_file}"}
-            
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
 def delete_file(
     target_file: str,
-    agent=None,  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     Delete a file at the specified path.
@@ -146,10 +158,10 @@ def delete_file(
                 "target_file": target_file,
                 "operation": "delete",
             }
-            
+
             if not agent.request_permission("delete_file", operation_details):
                 return {"status": "error", "message": "Permission denied to delete file"}
-        
+
         if not os.path.exists(target_file):
             return {"status": "error", "message": f"File {target_file} does not exist"}
 
@@ -161,9 +173,9 @@ def delete_file(
 
 
 def create_file(
-    file_path: str, 
+    file_path: str,
     content: str,
-    agent=None,  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     Create a new file with the given content.
@@ -183,31 +195,31 @@ def create_file(
                 "file_path": file_path,
                 "content_preview": content[:100] + ("..." if len(content) > 100 else ""),
             }
-            
+
             if not agent.request_permission("create_file", operation_details):
                 return {"status": "error", "message": "Permission denied to create file"}
-        
+
         # Create parent directories if they don't exist
         os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
-        
+
         # Check if file already exists
         file_exists = os.path.exists(file_path)
-        
+
         with open(file_path, "w") as f:
             f.write(content)
-            
+
         if file_exists:
             return {"status": "success", "message": f"Updated file at {file_path}"}
         else:
             return {"status": "success", "message": f"Created file at {file_path}"}
-            
+
     except Exception as e:
         return {"error": str(e)}
 
 
 def list_directory(
     relative_workspace_path: str,
-    agent=None,  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     List the contents of a directory.
@@ -245,24 +257,24 @@ def list_directory(
 def apply_edit(original_content: str, code_edit: str) -> str:
     """
     Parse and apply an edit to the original content.
-    
+
     Args:
         original_content: The original file content
         code_edit: The edit to apply, which may contain "... existing code ..." markers
-        
+
     Returns:
         The content after applying the edit
     """
     # If no markers, simply return the code_edit
     if "// ... existing code ..." not in code_edit and "# ... existing code ..." not in code_edit:
         return code_edit
-        
+
     original_lines = original_content.splitlines()
     edit_lines = code_edit.splitlines()
-    
+
     # Parse the edit to identify segments
-    segments = []
-    current_segment = []
+    segments: List[Tuple[str, Optional[List[str]]]] = []
+    current_segment: List[str] = []
     for line in edit_lines:
         if "// ... existing code ..." in line or "# ... existing code ..." in line:
             if current_segment:
@@ -271,14 +283,14 @@ def apply_edit(original_content: str, code_edit: str) -> str:
             segments.append(("keep", None))
         else:
             current_segment.append(line)
-    
+
     if current_segment:
         segments.append(("edit", current_segment))
-    
+
     # Apply the segments to the original content
     result_lines = []
     original_index = 0
-    
+
     for segment_type, segment_lines in segments:
         if segment_type == "keep":
             # For "keep" segments, include the original lines
@@ -289,10 +301,11 @@ def apply_edit(original_content: str, code_edit: str) -> str:
                 original_index += 1
         else:  # "edit"
             # For "edit" segments, include the new lines
-            result_lines.extend(segment_lines)
-    
+            if segment_lines:  # Check if segment_lines is not None
+                result_lines.extend(segment_lines)
+
     # Add any remaining original lines
     if original_index < len(original_lines):
         result_lines.extend(original_lines[original_index:])
-    
+
     return "\n".join(result_lines)

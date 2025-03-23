@@ -1,13 +1,15 @@
 import subprocess
 from typing import Any, Dict, Optional
 
+from ..base import BaseAgent
+
 
 def run_terminal_command(
     command: str,
     explanation: Optional[str] = None,
     is_background: bool = False,
     require_user_approval: bool = True,
-    agent=None,  # Optional agent reference for permissions
+    agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
     Run a terminal command.

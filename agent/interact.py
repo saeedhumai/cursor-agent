@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Union
 from dotenv import load_dotenv
 
 from .factory import create_agent
+from .permissions import PermissionOptions
 
 # Load environment variables from .env file
 # Try to find the .env file in the parent directory
@@ -274,7 +275,16 @@ async def run_agent_interactive(
         A summary of the conversation outcome
     """
     await print_status_before_agent(f"Creating agent with model {model}...")
-    agent = create_agent(model=model)
+
+    # Create permission options with yolo mode disabled and allowing only ls and cat commands
+    permissions = PermissionOptions(
+        yolo_mode=False,
+        command_allowlist=["ls", "cat"],
+        delete_file_protection=True
+    )
+
+    # Create agent with the configured permissions
+    agent = create_agent(model=model, permissions=permissions)
     agent.system_prompt = CURSOR_SYSTEM_PROMPT
     agent.register_default_tools()
 

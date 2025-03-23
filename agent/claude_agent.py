@@ -1,25 +1,12 @@
 # mypy: ignore-errors
 import json
-import os
 from typing import Any, Dict, List, Optional, Callable
 
 from anthropic import APIError, AsyncAnthropic, AuthenticationError, BadRequestError, RateLimitError
 
 from .base import BaseAgent
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
-from .tools import (
-    codebase_search,
-    create_file,
-    delete_file,
-    edit_file,
-    file_search,
-    grep_search,
-    list_directory,
-    read_file,
-    register_default_tools,
-    run_terminal_command,
-    web_search,
-)
+from .tools.register_tools import register_default_tools
 
 
 class ClaudeAgent(BaseAgent):
@@ -30,7 +17,7 @@ class ClaudeAgent(BaseAgent):
     def __init__(
         self,
         api_key: str,
-        model: str = "claude-3-opus-20240229",
+        model: str = "claude-3-5-sonnet-latest",
         temperature: float = 0.0,
         timeout: int = 180,
         permission_callback: Optional[Callable[[PermissionRequest], PermissionStatus]] = None,

@@ -8,6 +8,7 @@ that permissions are correctly handled based on different configurations.
 import os
 import pytest
 from unittest.mock import patch, MagicMock
+from typing import Generator, Any
 
 from agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
 from agent.factory import create_agent
@@ -16,12 +17,12 @@ from agent.factory import create_agent
 TEST_DIR = "./test_permission_dir"
 
 
-def setup_module():
+def setup_module() -> None:
     """Create test directory if it doesn't exist."""
     os.makedirs(TEST_DIR, exist_ok=True)
 
 
-def teardown_module():
+def teardown_module() -> None:
     """Remove test directory if it exists."""
     if os.path.exists(TEST_DIR):
         for filename in os.listdir(TEST_DIR):
@@ -32,7 +33,7 @@ def teardown_module():
 
 
 @pytest.fixture
-def test_file():
+def test_file() -> str:
     """Create a test file for the tests."""
     file_path = os.path.join(TEST_DIR, "test.txt")
     with open(file_path, "w") as f:
@@ -41,20 +42,20 @@ def test_file():
 
 
 @pytest.fixture
-def mock_user_confirm():
+def mock_user_confirm() -> MagicMock:
     """Mock that simulates user confirming permission."""
     mock = MagicMock(return_value=PermissionStatus.GRANTED)
     return mock
 
 
 @pytest.fixture
-def mock_user_deny():
+def mock_user_deny() -> MagicMock:
     """Mock that simulates user denying permission."""
     mock = MagicMock(return_value=PermissionStatus.DENIED)
     return mock
 
 
-def test_standard_permissions_require_confirmation(test_file, mock_user_confirm):
+def test_standard_permissions_require_confirmation(test_file: str, mock_user_confirm: MagicMock) -> None:
     """Test that standard permissions require confirmation."""
     # Create permissions with default settings
     permissions = PermissionOptions(yolo_mode=False)
@@ -87,7 +88,7 @@ def test_standard_permissions_require_confirmation(test_file, mock_user_confirm)
         assert request.details["target_file"] == test_file
 
 
-def test_yolo_mode_auto_grants_permissions(test_file):
+def test_yolo_mode_auto_grants_permissions(test_file: str) -> None:
     """Test that YOLO mode automatically grants permissions."""
     # Create permissions with YOLO mode enabled
     permissions = PermissionOptions(
@@ -116,7 +117,7 @@ def test_yolo_mode_auto_grants_permissions(test_file):
         assert mock_callback.call_count == 0
 
 
-def test_delete_protection_in_yolo_mode(test_file, mock_user_confirm):
+def test_delete_protection_in_yolo_mode(test_file: str, mock_user_confirm: MagicMock) -> None:
     """Test that delete file protection works even in YOLO mode."""
     # Create permissions with YOLO mode but delete protection enabled
     permissions = PermissionOptions(
@@ -143,7 +144,7 @@ def test_delete_protection_in_yolo_mode(test_file, mock_user_confirm):
     assert mock_user_confirm.call_count > 0
 
 
-def test_command_allowlist_in_yolo_mode():
+def test_command_allowlist_in_yolo_mode() -> None:
     """Test that command allowlist works in YOLO mode.
     
     NOTE: This test is simplified to pass with the current implementation.
@@ -182,7 +183,7 @@ def test_command_allowlist_in_yolo_mode():
     assert hasattr(agent.permission_manager.options, "command_allowlist")
 
 
-def test_command_denylist_in_yolo_mode(mock_user_confirm):
+def test_command_denylist_in_yolo_mode(mock_user_confirm: MagicMock) -> None:
     """Test that command denylist blocks commands even in YOLO mode.
     
     NOTE: This test is simplified to pass with the current implementation.
