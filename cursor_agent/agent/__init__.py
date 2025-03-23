@@ -10,5 +10,9 @@ from agent.base import BaseAgent
 from agent.claude_agent import ClaudeAgent
 from agent.openai_agent import OpenAIAgent
 
+# Import interactive functionality
+from agent.interact import run_agent_interactive, run_agent_chat
+
 # Define what should be available when using "from cursor_agent.agent import *"
-__all__ = ["create_agent", "BaseAgent", "ClaudeAgent", "OpenAIAgent"] 
+__all__ = ["create_agent", "BaseAgent", "ClaudeAgent", "OpenAIAgent", 
+           "run_agent_interactive", "run_agent_chat"] 

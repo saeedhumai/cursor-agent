@@ -1,101 +1,173 @@
 #!/usr/bin/env python3
 """
-Basic usage example for Cursor Agent
+Basic Usage Demo for Cursor Agent
 
-This example shows how to create agents with both Claude and OpenAI
-and how to interact with them for simple coding tasks.
+This script demonstrates the basic usage of the cursor agent with different models.
+It shows how to create agents and get responses to simple coding queries.
 """
 
 import asyncio
 import os
+import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Import the agent factory
-try:
-    from agent.factory import create_agent
-except ImportError:
-    import sys
+# Import from cursor_agent package
+from cursor_agent.agent import create_agent, run_agent_interactive
 
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from agent.factory import create_agent
+# Ensure the examples directory is in the path
+examples_dir = Path(__file__).parent
+if str(examples_dir) not in sys.path:
+    sys.path.append(str(examples_dir))
+
+# Import utility functions
+try:
+    from utils import (
+        Colors,
+        clear_screen,
+        print_error,
+        print_separator,
+        print_system_message,
+        print_assistant_response
+    )
+except ImportError:
+    # Add project root to path as fallback
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.append(str(project_root))
+    try:
+        from examples.utils import (
+            Colors,
+            clear_screen,
+            print_error,
+            print_separator,
+            print_system_message,
+            print_assistant_response
+        )
+    except ImportError:
+        raise ImportError("Unable to import utility functions. Make sure utils.py is in the examples directory.")
+
+# Load environment variables
+load_dotenv()
+
+
+async def run_claude_example():
+    """Run an example query with Claude agent."""
+    print_separator()
+    print_system_message("CLAUDE AGENT EXAMPLE")
+
+    # Check for Anthropic API key
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        print_error("No ANTHROPIC_API_KEY found in environment. Skipping Claude example.")
+        print_system_message("To use Claude, add your Anthropic API key to the .env file.")
+        return
+
+    # Initialize Claude agent
+    print_system_message("Initializing Claude agent...")
+    try:
+        # Create a temporary directory for the Claude demo
+        temp_dir = Path("demo_files/claude_example")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save current directory
+        original_dir = os.getcwd()
+        
+        # Change to the temporary directory
+        os.chdir(temp_dir)
+        
+        # Example query
+        query = "Write a Python function to calculate the factorial of a number using recursion."
+        print_system_message(f"Asking Claude: {query}")
+
+        # Use run_agent_interactive with a single iteration
+        await run_agent_interactive(
+            model="claude-3-5-sonnet-latest",
+            initial_query=query,
+            max_iterations=1,
+            auto_continue=True
+        )
+        
+        # Change back to original directory
+        os.chdir(original_dir)
+        
+        print_system_message("Claude example completed!")
+
+    except Exception as e:
+        print_error(f"Error with Claude agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Ensure we change back to the original directory if an exception occurs
+        if 'original_dir' in locals():
+            os.chdir(original_dir)
+
+
+async def run_openai_example():
+    """Run an example query with OpenAI agent."""
+    print_separator()
+    print_system_message("OPENAI AGENT EXAMPLE")
+
+    # Check for OpenAI API key
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_key:
+        print_error("No OPENAI_API_KEY found in environment. Skipping OpenAI example.")
+        print_system_message("To use OpenAI, add your OpenAI API key to the .env file.")
+        return
+
+    # Initialize OpenAI agent
+    print_system_message("Initializing OpenAI agent...")
+    try:
+        # Create user_info dictionary to help with context
+        user_info = {
+            "workspace_root": os.getcwd(),
+            "os": {
+                "name": os.name,
+                "system": sys.platform,
+            },
+        }
+        
+        agent = create_agent(model="gpt-4o")
+        print_system_message("OpenAI agent initialized successfully!")
+
+        # Example query
+        query = "Write a Python function to generate the Fibonacci sequence up to n terms."
+        print_system_message(f"Asking OpenAI: {query}")
+
+        # Get response with user_info context
+        response = await agent.chat(query, user_info)
+        print_assistant_response(response)
+
+    except Exception as e:
+        print_error(f"Error with OpenAI agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 async def main():
-    # Load environment variables from .env file
-    load_dotenv()
+    """Main entry point for the basic usage demo."""
 
-    # Check if API keys are set
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    openai_key = os.environ.get("OPENAI_API_KEY")
+    try:
+        clear_screen()
+        print_separator()
+        print_system_message("BASIC USAGE DEMO")
+        print_system_message("This demo shows how to use the cursor agent with different models.")
+        print_separator()
 
-    if not anthropic_key and not openai_key:
-        print("Error: No API keys found. Please set either ANTHROPIC_API_KEY or OPENAI_API_KEY.")
-        return
+        # Run Claude example
+        await run_claude_example()
 
-    # Determine which models to use based on available API keys
-    models = []
-    if anthropic_key:
-        models.append("claude-3-5-sonnet-latest")
-    if openai_key:
-        models.append("gpt-4o")
+        # Run OpenAI example
+        await run_openai_example()
 
-    for model in models:
-        print(f"\n{'='*20}\nUsing {model} model\n{'='*20}\n")
+        print_separator()
+        print_system_message("BASIC USAGE DEMO COMPLETED")
 
-        # Create an agent with the current model
-        agent = create_agent(model=model)
-
-        # Sample user query - asking for a simple code snippet
-        user_query = "Create a Python function that checks if a string is a palindrome"
-        print(f"User Query: {user_query}\n")
-
-        # Get response from the agent
-        try:
-            response = await agent.chat(user_query)
-            print(f"Agent Response:\n{response}\n")
-        except Exception as e:
-            print(f"Error with {model} agent: {str(e)}")
-
-        # Sample query with code modification
-        if Path("example_code.py").exists():
-            Path("example_code.py").unlink()
-
-        # Create a simple file to modify
-        with open("example_code.py", "w") as f:
-            f.write(
-                """def calculate_sum(numbers):
-    # TODO: Implement this function to calculate the sum of a list of numbers
-    pass
-"""
-            )
-
-        # Context information for the agent
-        user_info = {
-            "open_files": ["example_code.py"],
-            "cursor_position": {"file": "example_code.py", "line": 2},
-            "workspace_path": str(Path.cwd()),
-        }
-
-        user_query = "Implement the calculate_sum function to add up all numbers in the list"
-        print(f"User Query: {user_query}\n")
-
-        # Get response from the agent with context
-        try:
-            response = await agent.chat(user_query, user_info=user_info)
-            print(f"Agent Response:\n{response}\n")
-
-            # Show the modified file
-            if Path("example_code.py").exists():
-                print("Modified file contents:")
-                with open("example_code.py", "r") as f:
-                    print(f.read())
-        except Exception as e:
-            print(f"Error with {model} agent: {str(e)}")
-
-    # Clean up example file
-    if Path("example_code.py").exists():
-        Path("example_code.py").unlink()
+    except Exception as e:
+        print_error(f"An error occurred: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":

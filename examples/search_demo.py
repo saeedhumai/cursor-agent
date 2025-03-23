@@ -1,37 +1,61 @@
 #!/usr/bin/env python3
 """
-Search demo for the Claude agent.
+Search Demo for Cursor Agent
+
 This script demonstrates the agent's capabilities for searching and understanding codebases.
+It showcases how the agent can navigate through code, find relevant information,
+and answer questions about the structure and functionality of a project.
 """
 
 import asyncio
-import json
 import os
-import shutil
 import sys
+import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Import from parent directory
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+# Import from cursor_agent package
+from cursor_agent.agent import create_agent
 
-# Import the Claude agent
-from agent.claude_agent import ClaudeAgent
+# Ensure the examples directory is in the path
+examples_dir = Path(__file__).parent
+if str(examples_dir) not in sys.path:
+    sys.path.append(str(examples_dir))
 
-# Import demo utilities
-from tests.demo.utils import (
-    Colors,
-    clear_screen,
-    create_user_info,
-    print_assistant_response,
-    print_error,
-    print_separator,
-    print_system_message,
-    print_tool_call,
-    print_tool_result,
-    print_user_input,
-)
+# Import utility functions
+try:
+    from utils import (
+        Colors,
+        clear_screen,
+        print_error,
+        print_separator,
+        print_system_message,
+        print_user_input,
+        print_assistant_response,
+        create_user_info
+    )
+except ImportError:
+    # Add project root to path as fallback
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.append(str(project_root))
+    try:
+        from examples.utils import (
+            Colors,
+            clear_screen,
+            print_error,
+            print_separator,
+            print_system_message,
+            print_user_input,
+            print_assistant_response,
+            create_user_info
+        )
+    except ImportError:
+        raise ImportError("Unable to import utility functions. Make sure utils.py is in the examples directory.")
+
+# Load environment variables
+load_dotenv()
 
 # Demo project directory
 DEMO_DIR = os.path.join(os.path.dirname(__file__), "demo_project")
@@ -456,12 +480,11 @@ max_users: 100
     print_system_message(f"Demo project created at {DEMO_DIR}")
 
 
-async def run_search_demo(agent, non_interactive=False):
+async def run_search_demo(agent):
     """Run the search demo scenario.
 
     Args:
         agent: The initialized Claude agent
-        non_interactive: If True, don't wait for user input between steps
     """
     print_separator()
     print_system_message("SEARCH DEMO SCENARIO")
@@ -519,33 +542,39 @@ async def run_search_demo(agent, non_interactive=False):
         except Exception as e:
             print_error(f"Error getting response: {str(e)}")
 
-        # If not the last query and in interactive mode, wait for user input
-        if i < len(demo_queries) - 1 and not non_interactive:
-            input(f"{Colors.GRAY}Press Enter to continue to the next question...{Colors.ENDC}")
-        elif non_interactive:
-            # Add a small delay for readability in non-interactive mode
-            await asyncio.sleep(3)
+        # If not the last query, wait for user input
+        if i < len(demo_queries) - 1:
+            input(f"{Colors.GRAY}Press Enter to continue to the next question...{Colors.RESET}")
+        else:
+            # Add a small delay for readability at the end
+            await asyncio.sleep(1)
 
     print_separator()
     print_system_message("SEARCH DEMO COMPLETED")
 
 
-async def main(non_interactive=False):
-    """Main entry point for the demo.
-
-    Args:
-        non_interactive: When True, run in non-interactive mode without pauses
+async def main():
+    """
+    Main entry point for the search demo.
     """
     # Load environment variables
-    env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
-    if env_path.exists():
-        print_system_message(f"Loading environment variables from {env_path}")
-        load_dotenv(dotenv_path=env_path)
+    load_dotenv()
 
-    # Check if API key is present
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print_error("ANTHROPIC_API_KEY environment variable not set.")
+    # Check for API keys
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    
+    if not anthropic_key and not openai_key:
+        print_error("No API keys found. Please set either ANTHROPIC_API_KEY or OPENAI_API_KEY in your .env file.")
+        sys.exit(1)
+    
+    # Select model based on available keys
+    if anthropic_key:
+        model = "claude-3-5-sonnet-latest"
+    elif openai_key:
+        model = "gpt-4o"
+    else:
+        print_error("No API keys available")
         sys.exit(1)
 
     try:
@@ -553,30 +582,26 @@ async def main(non_interactive=False):
         print_separator()
         print_system_message("CODE SEARCH DEMO")
         print_system_message(
-            "This demo showcases the Claude agent's ability to search and understand codebases."
+            "This demo showcases the agent's ability to search and understand codebases."
         )
-
-        if non_interactive:
-            print_system_message("Running in non-interactive mode (no pauses between steps)")
-
         print_separator()
 
         # Set up the demo project
         setup_demo_project()
 
-        # Initialize the Claude agent
-        print_system_message("Initializing Claude agent...")
-        agent = ClaudeAgent(api_key=api_key)
-        agent.register_default_tools()
-        print_system_message("Claude agent initialized successfully!")
+        # Initialize the agent using cursor_agent package
+        print_system_message(f"Initializing agent with model {model}...")
+
+        # Use the cursor_agent.agent factory function
+        agent = create_agent(model=model)
+        print_system_message("Agent initialized successfully!")
 
         # Run the search demo
-        await run_search_demo(agent, non_interactive=non_interactive)
+        await run_search_demo(agent)
 
     except Exception as e:
         print_error(f"An error occurred: {str(e)}")
         import traceback
-
         traceback.print_exc()
 
     finally:
@@ -585,12 +610,6 @@ async def main(non_interactive=False):
         if os.path.exists(DEMO_DIR):
             shutil.rmtree(DEMO_DIR)
             print_system_message(f"Removed demo directory {DEMO_DIR}")
-
-
-# Add a dedicated non-interactive main function for backwards compatibility
-async def main_non_interactive():
-    """Run the demo in non-interactive mode without pauses between steps."""
-    await main(non_interactive=True)
 
 
 if __name__ == "__main__":

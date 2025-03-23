@@ -187,7 +187,8 @@ This example creates a specialized coding tutor agent with a custom personality 
 ### Interactive Mode
 
 ```python
-from cursor_agent.main import run_agent_interactive
+from cursor_agent.agent import run_agent_interactive
+import asyncio
 
 async def main():
     # Parameters:

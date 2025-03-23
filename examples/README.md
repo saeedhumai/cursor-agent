@@ -1,71 +1,131 @@
 # Cursor Agent Examples
 
-This directory contains various examples demonstrating how to use the Cursor Agent in different scenarios.
+This directory contains examples demonstrating how to use the Cursor Agent in different scenarios. All examples use the streamlined import structure from the `cursor_agent.agent` package.
 
 ## Available Examples
 
-### Basic Chat Example
-- **File**: `chat_demo.py`
-- **Description**: Demonstrates basic chat interaction with the agent
-- **Usage**: `python chat_demo.py`
+### Basic Usage
+- **File**: `basic_usage.py`
+- **Description**: Demonstrates how to create and use agents with both Claude and OpenAI models for simple coding tasks
+- **Usage**: `python basic_usage.py`
 
-### File Tools Demo
-- **File**: `file_tools_demo.py`
-- **Description**: Shows how to use file operations tools (read, edit, create, delete)
-- **Usage**: `python file_tools_demo.py`
+### Chat Demo
+- **File**: `chat_demo.py`
+- **Description**: Interactive chat session that allows conversational capabilities with the agent
+- **Usage**: `python chat_demo.py`
 
 ### Interactive Demo
 - **File**: `interactive_demo.py`
-- **Description**: An interactive session with the agent that responds to user inputs
-- **Usage**: `python interactive_demo.py`
+- **Description**: Demonstrates how to use the agent in interactive mode, with a predefined task for the FastAPI Todo API
+- **Usage**: 
+  - Non-interactive mode (default): `python interactive_demo.py`
+  - Interactive mode: `python interactive_demo.py --interactive`
+
+### File Tools Demo
+- **File**: `file_tools_demo.py`
+- **Description**: Shows how to use file operations tools (create, read, edit, delete) to build a calculator implementation
+- **Usage**: `python file_tools_demo.py`
 
 ### Search Demo
 - **File**: `search_demo.py`
-- **Description**: Demonstrates codebase search, grep search, and file search capabilities
+- **Description**: Demonstrates the agent's ability to understand and explore a complex codebase
 - **Usage**: `python search_demo.py`
 
-### Main Demo
+### Simple Task Demo
 - **File**: `main_demo.py`
-- **Description**: A comprehensive demo showcasing the main features of the agent
+- **Description**: Shows how to use the agent to solve a simple task interactively
 - **Usage**: `python main_demo.py`
 
-## Running All Demos
+## Example Descriptions
 
-You can run all demos in sequence using the main runner:
+### Basic Usage Demo
+This demo showcases two examples:
+1. **Claude Example**: Creates a Claude agent and asks it to write a Python function for calculating factorials using recursion
+2. **OpenAI Example**: Creates an OpenAI agent and asks it to write a Python function for generating the Fibonacci sequence
 
-```bash
-python main.py --demo-list all
-```
+### Chat Demo
+An interactive conversation with the agent:
+- Allows selecting a model if multiple are available (Claude or OpenAI)
+- Maintains conversation context between queries
+- Provides formatted output for readability
+- Type 'exit', 'quit', or 'q' to end the conversation
 
-Or run specific demos:
+### Interactive Demo
+Demonstrates the `run_agent_interactive` function:
+- In non-interactive mode (default): Uses a predefined task to create a FastAPI Todo API
+- In interactive mode: Allows selecting a model and entering a custom query
+- Supports auto-continuation through multiple iterations
 
-```bash
-python main.py --demo-list chat_demo,file_tools_demo
-```
+### File Tools Demo
+Shows the agent creating and manipulating files:
+1. Creates a Python calculator class with basic operations
+2. Adds a power method to the calculator class
+3. Creates a README for the calculator
 
-## Non-Interactive Mode
-
-All demos support non-interactive mode for automated testing:
-
-```bash
-python chat_demo.py --non-interactive
-```
+### Search Demo
+Shows the agent's ability to understand a codebase:
+1. Creates a sample project with multiple Python files
+2. Provides all files to the agent as context
+3. Asks questions about the logging system, database operations, configuration, and architecture
+4. The agent analyzes the code and provides detailed explanations
 
 ## Configuration
 
-You can configure the demos by setting environment variables:
+All examples support configuration through environment variables:
 
 - `ANTHROPIC_API_KEY`: Your Anthropic API key (for Claude models)
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `MODEL`: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
+- `OPENAI_API_KEY`: Your OpenAI API key (for GPT models)
 
-## Creating Your Own Examples
+The examples will automatically select an appropriate model based on which API keys are available.
 
-Feel free to use these examples as templates for your own use cases. The standard pattern is:
+## Creating Your Own Applications
 
-1. Import the agent factory
-2. Create an agent with desired configuration
-3. Implement the main logic for your use case
-4. Add both interactive and non-interactive modes
+Use these examples as templates for your own applications:
 
-See the existing examples for reference implementation patterns. 
+```python
+import asyncio
+from dotenv import load_dotenv
+import os
+
+# Import from the cursor_agent package
+from cursor_agent.agent import create_agent
+# For interactive applications
+from cursor_agent.agent import run_agent_interactive
+
+# Load environment variables
+load_dotenv()
+
+# Create and use a regular agent
+async def use_regular_agent():
+    # Create an agent with your preferred model
+    agent = create_agent(model="claude-3-5-sonnet-latest")  # or "gpt-4o"
+    
+    # Create user context information
+    user_info = {
+        "workspace_root": os.getcwd(),
+        "os": {
+            "name": os.name,
+            "system": sys.platform,
+        },
+    }
+    
+    # Use the agent to get responses
+    response = await agent.chat("Your query here", user_info)
+    print(response)
+
+# Use the agent in interactive mode
+async def use_interactive_agent():
+    await run_agent_interactive(
+        model="claude-3-5-sonnet-latest",  # or "gpt-4o"
+        initial_query="Your initial query",
+        max_iterations=10,
+        auto_continue=False  # Set to True to continue automatically
+    )
+
+# Run your chosen function
+asyncio.run(use_regular_agent())
+# or
+# asyncio.run(use_interactive_agent())
+```
+
+Each example demonstrates different aspects of the agent's capabilities and can be adapted for your specific use cases. 

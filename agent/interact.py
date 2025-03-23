@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-import argparse
+"""
+Interactive Agent Module for cursor_agent package.
+
+This module provides functions for running interactive agent conversations,
+allowing multi-step problem solving and task completion.
+"""
+
 import asyncio
 import json
 import os
@@ -9,7 +15,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from agent.factory import create_agent
+from .factory import create_agent
 
 # Load environment variables from .env file
 # Try to find the .env file in the parent directory
@@ -767,81 +773,5 @@ async def run_agent_chat(
     await print_agent_information(agent, "response", response)
 
 
-async def main():
-    """Main entry point for the agent."""
-    # Create a simple function for printing errors before we have an agent
-    async def print_error(message, details=None):
-        print(f"\n❌ Error: {message}")
-        if details:
-            print(f"  {details}")
-            
-    parser = argparse.ArgumentParser(description="Run the AI Agent with different models")
-    parser.add_argument(
-        "--model",
-        default="claude-3-5-sonnet-latest",
-        help="The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')",
-    )
-    parser.add_argument(
-        "--query",
-        default="Create a Python function to calculate the factorial of a number",
-        help="The query to send to the agent",
-    )
-    parser.add_argument(
-        "--interactive", action="store_true", help="Run in interactive mode with multiple steps"
-    )
-    parser.add_argument(
-        "--auto",
-        dest="auto_continue",
-        action="store_false",
-        help="In interactive mode, disable automatic continuation (requires user input after each step)",
-    )
-    parser.add_argument(
-        "--max-iterations",
-        type=int,
-        default=10,
-        help="Maximum number of iterations in interactive mode",
-    )
-
-    args = parser.parse_args()
-
-    # Ensure API keys are set
-    if args.model.startswith("claude-"):
-        anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not anthropic_key:
-            await print_error(
-                "ANTHROPIC_API_KEY environment variable not set",
-                "Please set it in your .env file with: ANTHROPIC_API_KEY='your_api_key'"
-            )
-            return
-        elif "your_" in anthropic_key or len(anthropic_key) < 15:
-            await print_error(
-                "ANTHROPIC_API_KEY appears to be a placeholder or invalid",
-                "Please update it in your .env file with a valid key"
-            )
-            return
-
-    if args.model.startswith("gpt-"):
-        openai_key = os.environ.get("OPENAI_API_KEY")
-        if not openai_key:
-            await print_error(
-                "OPENAI_API_KEY environment variable not set",
-                "Please set it in your .env file with: OPENAI_API_KEY='your_api_key'"
-            )
-            return
-        elif "your_" in openai_key or len(openai_key) < 15:
-            await print_error(
-                "OPENAI_API_KEY appears to be a placeholder or invalid",
-                "Please update it in your .env file with a valid key"
-            )
-            return
-
-    if args.interactive:
-        await run_agent_interactive(
-            args.model, args.query, args.max_iterations, args.auto_continue
-        )
-    else:
-        await run_agent_chat(args.model, args.query)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# Main entry point and argument handling remain in the original main.py file
+# This module is designed to be imported and used by other modules 

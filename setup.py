@@ -27,14 +27,14 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        "anthropic==0.8.1",
-        "openai==1.6.1",
-        "colorama==0.4.6",
-        "python-dotenv==1.0.0",
-        "typing-extensions==4.8.0",
-        "requests==2.31.0",
-        "urllib3==2.0.7",
-        "httpx<0.26.0",
+        "anthropic>=0.49.0",
+        "openai>=1.6.1",
+        "colorama>=0.4.6",
+        "python-dotenv>=1.0.0",
+        "typing-extensions>=4.8.0",
+        "requests>=2.31.0",
+        "urllib3>=2.0.7",
+        "httpx>=0.25.0",
     ],
     extras_require={
         "dev": [

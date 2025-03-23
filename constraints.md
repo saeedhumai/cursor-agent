@@ -209,3 +209,21 @@ This document outlines the constraints of the AI Agent implementation and provid
   3. Created a .mypy.ini configuration file to customize type checking rules for different parts of the codebase
 
 By applying these workarounds, we've maintained strong type safety throughout the codebase while allowing flexibility where needed for third-party library integration. 
+
+## Anthropic API Version Updates
+
+### Migration from v0.8.1 to v0.49.0+
+- **Constraint**: The Anthropic SDK underwent significant changes between versions 0.8.1 and 0.49.0, with changes to the API structure, method signatures, and response formats.
+- **Workaround**: Updated the agent implementation to use the latest API format with `client.messages.create()` instead of the older format. Ensured type handling is compatible with the new response structure where messages have content blocks rather than a single string response.
+
+### Response Content Extraction
+- **Constraint**: In the updated Anthropic API (v0.49.0+), responses are returned as structured objects with content blocks rather than simple text strings.
+- **Workaround**: Added logic to extract text from content blocks using `"".join(block.text for block in response.content if block.type == "text")` to maintain compatibility with code expecting text responses.
+
+### Tool Use Response Handling
+- **Constraint**: The new API has a different structure for tool use responses, with content blocks of type "tool_use" instead of the previous format.
+- **Workaround**: Updated the tool execution logic to handle the new response format, properly extracting tool calls from content blocks and maintaining correct conversation history structure.
+
+### Dependencies Management
+- **Constraint**: Upgrading the Anthropic SDK required updating dependencies in both setup.py and requirements.txt to specify compatible version ranges.
+- **Workaround**: Updated dependency specifications to use version ranges with minimum compatible versions (e.g., `anthropic>=0.49.0`) rather than pinning to specific versions, allowing for future patch updates without breaking changes. 

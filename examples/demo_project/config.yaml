@@ -1,0 +1,5 @@
+# Application configuration
+database_url: "memory://demo"
+log_level: "INFO"
+debug_mode: false
+max_users: 100
