@@ -301,33 +301,36 @@ async def run_agent_interactive(
     max_iterations: int = 10,
     auto_continue: bool = True,
     auto_continue_prompt: str = "auto continue",
+    agent: Optional[Any] = None
 ) -> str:
     """
     Run the agent in interactive mode, allowing back-and-forth conversation.
 
     Args:
-        model: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
+        model: The model to use (only used if agent not provided)
         initial_query: The initial task/query to send to the agent
         max_iterations: Maximum number of iterations to perform
         auto_continue: If True, continue automatically; otherwise prompt user after each step
+        auto_continue_prompt: Custom prompt for auto-continuation
+        agent: Pre-configured agent instance (optional)
 
     Returns:
         A summary of the conversation outcome
     """
-    await print_status_before_agent(f"Creating agent with model {model}...")
-
-    # Create permission options with yolo mode disabled and allowing only ls and cat commands
-    permissions = PermissionOptions(
-        yolo_mode=False,
-        command_allowlist=["ls", "cat"],
-        delete_file_protection=True
-    )
-
-    # Create agent with the configured permissions
-    agent = create_agent(model=model, permissions=permissions)
-    agent.system_prompt = CURSOR_SYSTEM_PROMPT
-    agent.register_default_tools()
-
+    # Use provided agent or create one with default permissions
+    if agent is None:
+        await print_status_before_agent(f"Creating agent with model {model}...")
+        # Create agent with default permissions
+        default_permissions = PermissionOptions(
+            yolo_mode=False,
+            command_allowlist=["ls", "cat"],
+            delete_file_protection=True
+        )
+        agent = create_agent(model=model, permissions=default_permissions)
+        agent.system_prompt = CURSOR_SYSTEM_PROMPT
+        agent.register_default_tools()
+    else:
+        await print_status_before_agent("Using pre-configured agent")
     # Now we can use the agent with our print function
     await print_agent_information(agent, "status", "Initializing conversation with initial task")
     await print_agent_information(agent, "status", "Task description", initial_query)
