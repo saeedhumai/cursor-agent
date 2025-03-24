@@ -8,7 +8,7 @@ allowing multi-step problem solving and task completion.
 
 import os
 import sys
-import time
+import time, asyncio
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -388,6 +388,7 @@ First, I'll create a plan for how to approach this task, then implement it step 
             # 3. Process tool calls - returns updated tool call count and tool calls
             # Changed here - passing the full response object instead of extracted tool calls
             agent_response = await run_single_query(agent, query, user_info, use_custom_system_prompt=True)
+            await asyncio.sleep(5)
             current_iteration_tool_calls, tool_calls = await process_tool_calls(
                 agent, agent_response, user_info, created_or_modified_files, current_iteration_tool_calls
             )
