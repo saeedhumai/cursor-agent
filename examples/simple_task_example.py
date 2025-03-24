@@ -91,16 +91,20 @@ async def main():
         # Store original directory
         original_dir = os.getcwd()
         
-        # Run the agent interactive loop
-        # Change to the examples directory to ensure relative paths work correctly
-        examples_dir = Path(__file__).parent
-        os.chdir(examples_dir)
+        # Create example_files directory if it doesn't exist
+        example_dir = Path(original_dir) / "example_files" / "simple_task_example"
+        example_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Change to the example_files directory
+        os.chdir(example_dir)
+        print_system_message(f"Working in directory: {os.getcwd()}")
         
         # Run the agent
         await run_agent_interactive(
             model=model,
             initial_query=task,
-            max_iterations=10
+            max_iterations=10,
+            auto_continue=True
         )
         
         # Change back to the original directory
@@ -111,7 +115,14 @@ async def main():
         import traceback
         traceback.print_exc()
         
+        # Ensure we change back to the original directory if an exception occurs
+        if 'original_dir' in locals():
+            os.chdir(original_dir)
+            
     finally:
+        # Make sure we always return to the original directory
+        if 'original_dir' in locals():
+            os.chdir(original_dir)
         print_separator()
         print_system_message("SIMPLE TASK EXAMPLE COMPLETED")
 

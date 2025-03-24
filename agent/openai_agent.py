@@ -1,10 +1,10 @@
 # mypy: ignore-errors
 import json
-from typing import Any, Dict, List, Optional, Callable, cast
+from typing import Any, Dict, List, Optional, Callable, cast, Union
 
 from openai import AsyncOpenAI, BadRequestError, RateLimitError, APIError, AuthenticationError
 
-from .base import BaseAgent
+from .base import BaseAgent, AgentResponse, AgentToolCall
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
 from .tools.register_tools import register_default_tools
 
@@ -222,7 +222,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         return tool_results
 
-    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> str:
+    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
         """
         Send a message to the OpenAI API and get a response.
 
@@ -231,7 +231,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             user_info: Optional dict containing info about the user's current state
 
         Returns:
-            OpenAI's response
+            Either a string response (for backward compatibility) or a structured AgentResponse
+            containing the message, tool_calls made, and optional thinking
         """
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
@@ -244,6 +245,9 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         # Prepare tools
         tools = self._prepare_tools()
+
+        # Initialize the structured response
+        processed_tool_calls: List[AgentToolCall] = []
 
         try:
             # Make the API call
@@ -259,6 +263,9 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             # Get the assistant's response
             assistant_message = response.choices[0].message
 
+            # Track thinking (not directly supported by OpenAI but we can add it in the future)
+            thinking = None
+
             # Check if there are any tool calls
             if assistant_message.tool_calls:
                 # Add the assistant's response to the conversation history
@@ -272,6 +279,28 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
                 # Execute the tool calls
                 tool_results = self._execute_tool_calls(assistant_message.tool_calls)
+
+                # Process and track tool calls for the structured response
+                for idx, tool_call in enumerate(assistant_message.tool_calls):
+                    tool_name = tool_call.function.name
+                    try:
+                        parameters = json.loads(tool_call.function.arguments)
+                    except json.JSONDecodeError:
+                        parameters = {}
+
+                    # Find the corresponding result
+                    result = None
+                    for res in tool_results:
+                        if res.get("tool_call_id") == tool_call.id:
+                            result = res.get("content", "")
+                            break
+
+                    # Add to processed tool calls
+                    processed_tool_calls.append({
+                        "name": tool_name,
+                        "parameters": parameters,
+                        "result": result
+                    })
 
                 # Add the tool results to the conversation history
                 for result in tool_results:
@@ -310,27 +339,64 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     {"role": "assistant", "content": follow_up_message.content}
                 )
 
-                return follow_up_message.content or ""
+                response_text = follow_up_message.content or ""
+
+                # Return structured response
+                return {
+                    "message": response_text,
+                    "tool_calls": processed_tool_calls,
+                    "thinking": thinking
+                }
             else:
                 # Add the assistant's response to the conversation history
                 self.conversation_history.append(
                     {"role": "assistant", "content": assistant_message.content}
                 )
 
-                return assistant_message.content or ""
+                response_text = assistant_message.content or ""
+
+                # Return structured response
+                return {
+                    "message": response_text,
+                    "tool_calls": processed_tool_calls,
+                    "thinking": thinking
+                }
 
         except AuthenticationError as e:
-            return (
-                f"Error: Authentication failed. Please check your OpenAI API key. Details: {str(e)}"
-            )
+            error_msg = f"Error: Authentication failed. Please check your OpenAI API key. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except BadRequestError as e:
-            return f"Error: Bad request to the OpenAI API. Details: {str(e)}"
+            error_msg = f"Error: Bad request to the OpenAI API. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except RateLimitError as e:
-            return f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            error_msg = f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except APIError as e:
-            return f"Error: OpenAI API error. Details: {str(e)}"
+            error_msg = f"Error: OpenAI API error. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except Exception as e:
-            return f"Error: An unexpected error occurred. Details: {str(e)}"
+            error_msg = f"Error: An unexpected error occurred. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
 
     def register_default_tools(self) -> None:
         """

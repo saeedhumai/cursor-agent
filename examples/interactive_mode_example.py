@@ -60,14 +60,9 @@ Include docstrings and proper error handling.
 
 
 async def main():
-
     """
     Main entry point for the interactive example.
-    
-    Args:
-        interactive: When True, prompt user for model and query. When False, use defaults.
     """
-
     
     # Load environment variables
     load_dotenv()
@@ -117,7 +112,7 @@ async def main():
             model=selected_model,
             initial_query=initial_query,
             max_iterations=20,
-            auto_continue=not interactive  # Auto-continue in non-interactive mode
+            auto_continue=True  # Auto-continue in non-interactive mode
         )
         
         # Change back to the original directory
@@ -140,5 +135,4 @@ async def main():
 
 
 if __name__ == "__main__":
-
     asyncio.run(main())

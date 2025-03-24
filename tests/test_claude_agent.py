@@ -91,15 +91,24 @@ class TestClaudeAgent(unittest.TestCase):
         self.assertIn("test_tool", self.agent.available_tools)
         self.assertEqual(self.agent.available_tools["test_tool"]["schema"]["description"], "Test tool")
 
-    @async_test
-    @unittest.skipIf(not api_key, "Anthropic API key not available")
-    async def test_simple_chat(self) -> None:
-        """Test a simple chat interaction with real API."""
-        if not self.agent_api_key or not is_real_api_key(self.agent_api_key, "anthropic"):
-            self.skipTest("No valid Anthropic API key for live testing")
-            
+    @pytest.mark.asyncio
+    async def test_chat(self) -> None:
+        """Test the chat method returns a proper response"""
         response = await self.agent.chat("What is the capital of France?")
-        self.assertIn("Paris", response)
+        
+        # Check if it's the new structured response
+        if isinstance(response, dict):
+            assert "message" in response
+            assert isinstance(response["message"], str)
+            assert "tool_calls" in response
+            assert "thinking" in response
+            
+            # Check response content
+            assert "Paris" in response["message"]
+        else:
+            # For backward compatibility with string responses
+            assert isinstance(response, str)
+            assert "Paris" in response
 
     @async_test
     @unittest.skipIf(not api_key, "Anthropic API key not available")
@@ -116,29 +125,79 @@ class TestClaudeAgent(unittest.TestCase):
         }
         
         response = await self.agent.chat(test_message, user_info)
-        self.assertIsInstance(response, str)
-        self.assertTrue("test.py" in response or "main.py" in response)
+        
+        # Check if it's the new structured response
+        if isinstance(response, dict):
+            self.assertIn("message", response)
+            self.assertIn("tool_calls", response)
+            self.assertTrue(
+                "test.py" in response["message"] or 
+                "main.py" in response["message"]
+            )
+        else:
+            # For backward compatibility
+            self.assertIsInstance(response, str)
+            self.assertTrue("test.py" in response or "main.py" in response)
 
     @async_test
     @unittest.skipIf(not api_key, "Anthropic API key not available")
     async def test_file_tools(self) -> None:
-        """Test file-related tools with real API."""
-        if not self.agent_api_key or not is_real_api_key(self.agent_api_key, "anthropic"):
-            self.skipTest("No valid Anthropic API key for live testing")
-            
+        """Test file tools with the agent."""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
+            tmp.write(b"This is a test file content.")
+            self.test_file_path = tmp.name
+        
         # Register tools
-        self.agent.register_default_tools()
+        from agent.tools.file_tools import read_file, list_directory
+        self.agent.register_tool(
+            name="read_file", 
+            function=read_file, 
+            description="Read a file", 
+            parameters={
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file"}
+                },
+                "required": ["path"]
+            }
+        )
+        self.agent.register_tool(
+            name="list_dir", 
+            function=list_directory, 
+            description="List directory contents", 
+            parameters={
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the directory"}
+                },
+                "required": ["path"]
+            }
+        )
         
         # Test file-related query
         response = await self.agent.chat(f"Read the file at {self.test_file_path}")
         
-        self.assertIsInstance(response, str)
-        # The response should either include the content or explain that tool usage is needed
-        self.assertTrue(
-            "test file" in response.lower() or 
-            "read" in response.lower() or 
-            "tool" in response.lower()
-        )
+        # Handle structured response
+        if isinstance(response, dict):
+            # Test if it's a valid AgentResponse
+            self.assertIn("message", response)
+            self.assertIn("tool_calls", response)
+            
+            # Check message content
+            message = response["message"]
+            self.assertTrue(
+                "test file" in message.lower() or 
+                "read" in message.lower() or 
+                "tool" in message.lower()
+            )
+        else:
+            # For backward compatibility with string responses
+            self.assertIsInstance(response, str)
+            # The response should either include the content or explain that tool usage is needed
+            self.assertTrue(
+                "test file" in response.lower() or 
+                "read" in response.lower() or 
+                "tool" in response.lower()
+            )
 
     # Can add more tests for other tool functionality
 

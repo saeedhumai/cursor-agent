@@ -1,10 +1,10 @@
 # mypy: ignore-errors
 import json
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Union
 
 from anthropic import APIError, AsyncAnthropic, AuthenticationError, BadRequestError, RateLimitError
 
-from .base import BaseAgent
+from .base import BaseAgent, AgentResponse, AgentToolCall
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
 from .tools.register_tools import register_default_tools
 
@@ -233,7 +233,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         return tool_results
 
-    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> str:
+    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
         """
         Send a message to Claude and get a response.
 
@@ -242,7 +242,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             user_info: Optional dict containing info about the user's current state
 
         Returns:
-            Claude's response
+            Either a string response (for backward compatibility) or a structured AgentResponse
+            containing the message, tool_calls made, and optional thinking
         """
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
@@ -266,6 +267,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         tools = None
         if use_tools:
             tools = self._prepare_tools()
+            
+        # Initialize the structured response
+        processed_tool_calls: List[AgentToolCall] = []
+        thinking = None  # Claude doesn't directly expose thinking, but we could add it in the future
 
         try:
             # Make the API call
@@ -321,8 +326,30 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
                 # Execute tool calls
                 tool_results = self._execute_tool_calls(tool_calls)
+                
+                # Process and track tool calls for the structured response
+                for idx, tool_call in enumerate(tool_calls):
+                    tool_name = tool_call["name"]
+                    parameters = tool_call["input"]
+                    
+                    # Find the corresponding result
+                    result = None
+                    for res in tool_results:
+                        for content_block in res.get("content", []):
+                            if content_block.get("tool_use_id") == tool_call["id"]:
+                                result = content_block.get("content", "")
+                                break
+                        if result:
+                            break
+                    
+                    # Add to processed tool calls
+                    processed_tool_calls.append({
+                        "name": tool_name,
+                        "parameters": parameters,
+                        "result": result
+                    })
 
-                # Add tool results to conversation history and prepare follow-up messages
+                # Add tool results to conversation history
                 if tool_results:
                     for result in tool_results:
                         self.conversation_history.append(result)
@@ -353,14 +380,22 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     response_text = "".join(
                         block.text for block in follow_up_response.content if block.type == "text"
                     )
-
-                    return response_text
+                    
+                    # Return structured response
+                    return {
+                        "message": response_text,
+                        "tool_calls": processed_tool_calls,
+                        "thinking": thinking
+                    }
                 else:
                     # No valid tool results were generated
-                    response_text = (
-                        "Error: Failed to execute tool calls. Please try a different query."
-                    )
-                    return response_text
+                    error_msg = "Error: Failed to execute tool calls. Please try a different query."
+                    
+                    return {
+                        "message": error_msg,
+                        "tool_calls": processed_tool_calls,
+                        "thinking": thinking
+                    }
             else:
                 # Extract text from the response
                 response_text = "".join(
@@ -370,22 +405,52 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 # Add the assistant's response to the conversation history
                 self.conversation_history.append({"role": "assistant", "content": response.content})
 
-                return response_text
+                # Return structured response
+                return {
+                    "message": response_text,
+                    "tool_calls": processed_tool_calls,
+                    "thinking": thinking
+                }
 
         except AuthenticationError as e:
-            return f"Error: Authentication failed. Please check your Anthropic API key. Details: {str(e)}"
+            error_msg = f"Error: Authentication failed. Please check your Anthropic API key. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except BadRequestError as e:
             # Provide more detailed information about the bad request
             request_info = ""
             if hasattr(e, "request"):
                 request_info = f"\nRequest information: {e.request}"
-            return f"Error: Bad request to the Anthropic API. Details: {str(e)}{request_info}"
+            error_msg = f"Error: Bad request to the Anthropic API. Details: {str(e)}{request_info}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except RateLimitError as e:
-            return f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            error_msg = f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except APIError as e:
-            return f"Error: Anthropic API error. Details: {str(e)}"
+            error_msg = f"Error: Anthropic API error. Details: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
         except Exception as e:
-            return f"Error: An unexpected error occurred. Details: {type(e).__name__}: {str(e)}"
+            error_msg = f"Error: An unexpected error occurred. Details: {type(e).__name__}: {str(e)}"
+            return {
+                "message": error_msg,
+                "tool_calls": [],
+                "thinking": None
+            }
 
     def register_default_tools(self) -> None:
         """

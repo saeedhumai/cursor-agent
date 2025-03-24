@@ -8,6 +8,7 @@ the demo examples.
 """
 
 import os
+import platform
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -24,11 +25,13 @@ class Colors:
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
     GRAY = "\033[90m"
+    MAGENTA = "\033[95m"
+    WHITE = "\033[97m"
 
 
-def print_user_query(text: str) -> None:
-    """Print user query with appropriate formatting."""
-    print(f"\n{Colors.BOLD}{Colors.GREEN}User: {Colors.RESET}{text}")
+def print_user_query(query: str) -> None:
+    """Print a user query."""
+    print(f"{Colors.GREEN}USER QUERY: {query}{Colors.RESET}")
 
 
 # Add backward compatibility for print_user_input
@@ -73,14 +76,7 @@ def print_error(text: str) -> None:
 
 def print_separator() -> None:
     """Print a separator line."""
-    try:
-        terminal_width = os.get_terminal_size().columns
-    except (OSError, IOError):
-        # Fall back to reasonable default if terminal size cannot be determined
-        terminal_width = 80
-    
-    separator = "-" * min(terminal_width, 80)
-    print(f"\n{Colors.GRAY}{separator}{Colors.RESET}")
+    print(f"{Colors.GRAY}{'=' * 80}{Colors.RESET}")
 
 
 def create_user_info(open_files: Optional[List[str]] = None, workspace_path: Optional[str] = None) -> Dict[str, Any]:
@@ -103,10 +99,26 @@ def create_user_info(open_files: Optional[List[str]] = None, workspace_path: Opt
     return {
         "open_files": open_files,
         "workspace_path": workspace_path,
-        "os": sys.platform,
+        "os": platform.system(),
+        "python_version": sys.version,
     }
 
 
 def clear_screen() -> None:
     """Clear the terminal screen in a cross-platform way."""
-    os.system("cls" if os.name == "nt" else "clear")
+    os.system("cls" if platform.system() == "Windows" else "clear")
+
+
+def print_info(message: str) -> None:
+    """Print an informational message."""
+    print(f"{Colors.MAGENTA}INFO: {message}{Colors.RESET}")
+
+
+def print_assistant(prefix: str = "") -> None:
+    """Print an assistant message prefix."""
+    print(f"{Colors.CYAN}{prefix}{Colors.RESET}", end="")
+
+
+def print_prompt(prompt: str) -> None:
+    """Print a prompt for user input."""
+    print(f"{Colors.GREEN}{prompt}{Colors.RESET}", end="")

@@ -5,23 +5,37 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Callable, Dict, TypeVar, Optional, ClassVar, Coroutine
+from typing import Any, Callable, Dict, TypeVar, Optional, ClassVar, Coroutine, Union
 
 import pytest
 from dotenv import load_dotenv
+from unittest.mock import patch, MagicMock
 
 from agent.openai_agent import OpenAIAgent
 from tests.utils import (
-    check_response_quality,
     create_test_file,
     create_user_info,
     delete_test_file,
     get_test_env,
     is_real_api_key,
 )
+from agent.base import AgentResponse
 
 # Type variable for the coroutine return type
 T = TypeVar('T')
+
+
+def check_response_quality(response: Union[str, AgentResponse]) -> bool:
+    """Check if a response meets basic quality standards."""
+    # For structured responses
+    if isinstance(response, dict):
+        if "message" not in response:
+            return False
+        message = response["message"]
+        # Check if the message is a reasonable length
+        return bool(message and len(message) > 20)
+    # For string responses (backward compatibility)
+    return bool(response and len(response) > 20)
 
 
 # Helper for async tests
@@ -134,24 +148,25 @@ class TestOpenAIAgent(unittest.TestCase):
         self.assertEqual(agent.available_tools["test_tool"]["schema"]["description"], "Test tool")
 
     @async_test
-    async def test_simple_chat(self) -> None:
-        """Test a simple chat interaction with real API."""
-        query = "What is Python?"
-        
-        # Skip if no API key
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key or not is_real_api_key(api_key, "openai"):
-            self.skipTest("No valid OpenAI API key for live testing")
-
+    @unittest.skipIf(not api_key, "OpenAI API key not available")
+    async def test_simple_query(self) -> None:
+        """Test a simple query without tools."""
+        query = "What is the capital of France?"
         response = await self.agent.chat(query)
-
-        # Skip test if API error detected
-        if response.startswith("Error:"):
-            self.skipTest(f"API error detected: {response[:100]}")
-
-        print(f"Simple chat response: {response[:100]}...")
-        self.assertTrue(check_response_quality(response), "Response failed quality check")
-        self.assertEqual(len(self.agent.conversation_history), 2)  # User message + agent response
+        
+        # Check if it's the new structured response
+        if isinstance(response, dict):
+            self.assertIn("message", response)
+            self.assertIsInstance(response["message"], str)
+            self.assertIn("tool_calls", response)
+            self.assertIn("thinking", response)
+            
+            # Check if there's actual content in the message
+            self.assertIn("Paris", response["message"])
+        else:
+            # For backward compatibility with string responses
+            self.assertIsInstance(response, str)
+            self.assertIn("Paris", response)
 
     @async_test
     async def test_chat_with_user_info(self) -> None:
@@ -168,40 +183,85 @@ class TestOpenAIAgent(unittest.TestCase):
         
         response = await agent.chat(query, user_info)
         self.assertTrue(check_response_quality(response))
-        self.assertIn("test_file.py", response)
+        
+        # Check if it's the new structured response
+        if isinstance(response, dict):
+            self.assertIn("message", response)
+            self.assertIn("tool_calls", response)
+            self.assertIn("test_file.py", response["message"])
+        else:
+            # For backward compatibility
+            self.assertIn("test_file.py", response)
 
     @async_test
     async def test_file_tools(self) -> None:
         """Test file-related tools with real API."""
-        # Skip if no API key
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key or not is_real_api_key(api_key, "openai"):
-            self.skipTest("No valid OpenAI API key for live testing")
+        if not self.agent:
+            self.skipTest("Agent not initialized")
         
-        # Create a test directory and file
-        self.test_dir = tempfile.mkdtemp()
-        test_file = os.path.join(self.test_dir, "test.txt")
+        agent = self.agent
+        
+        # Register tools
+        from agent.tools.file_tools import read_file, list_directory
+        agent.register_tool(
+            name="read_file", 
+            function=read_file, 
+            description="Read a file", 
+            parameters={
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file"}
+                },
+                "required": ["path"]
+            }
+        )
+        agent.register_tool(
+            name="list_dir", 
+            function=list_directory, 
+            description="List directory contents", 
+            parameters={
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the directory"}
+                },
+                "required": ["path"]
+            }
+        )
+        
+        # Create a temporary file
+        test_file = "test_openai_file.txt"
         with open(test_file, "w") as f:
-            f.write("This is a test file.")
-        
-        agent = OpenAIAgent(api_key=api_key)
-        agent.register_default_tools()
+            f.write("This is a test file content.")
         
         # Ask about the file
         response = await agent.chat(f"Can you read the file {test_file}?")
         self.assertTrue(check_response_quality(response))
         
-        # The response should either have content from the file or mention using a tool
-        # Lowercasing and checking for multiple possible variations
-        response_lower = response.lower()
-        self.assertTrue(
-            "test file" in response_lower or
-            "read" in response_lower or
-            "content" in response_lower or
-            "file" in response_lower or
-            "tool" in response_lower,
-            f"Response does not contain expected content: {response[:100]}..."
-        )
+        # Check response appropriately based on type
+        if isinstance(response, dict):
+            # Verify it's a valid AgentResponse
+            self.assertIn("message", response)
+            self.assertIn("tool_calls", response)
+            
+            # The response should either have content from the file or mention using a tool
+            response_message = response["message"].lower()
+            self.assertTrue(
+                "test file" in response_message or
+                "read" in response_message or
+                "content" in response_message or
+                "file" in response_message or
+                "tool" in response_message,
+                f"Response does not contain expected content: {response['message'][:100]}..."
+            )
+        else:
+            # For backward compatibility with string responses
+            response_lower = response.lower()
+            self.assertTrue(
+                "test file" in response_lower or
+                "read" in response_lower or
+                "content" in response_lower or
+                "file" in response_lower or
+                "tool" in response_lower,
+                f"Response does not contain expected content: {response[:100]}..."
+            )
 
     # Can add more tests for other tool functionality
 

@@ -24,26 +24,36 @@ else:
                   reason="ANTHROPIC_API_KEY environment variable not set")
 @pytest.mark.anthropic
 async def test_claude_chat() -> None:
-    """Test the Claude agent's chat functionality."""
+    """Test a basic chat with Claude."""
+    print("\nRunning Claude chat test...")
     try:
-        # Initialize the Claude agent with the API key from the environment
+        # Create the agent
         api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if api_key is None:
-            pytest.skip("ANTHROPIC_API_KEY environment variable not found.")
-            
-        print(f"Using API key: {api_key[:10]}...{api_key[-5:]}")
-
-        # Initialize with the new model
-        agent = ClaudeAgent(api_key=api_key, model="claude-3-7-sonnet-latest")
-        print(f"Agent initialized successfully with model: {agent.model}")
+        if not api_key:
+            pytest.skip("ANTHROPIC_API_KEY environment variable not found or empty")
+        agent = ClaudeAgent(api_key=api_key, model="claude-3-5-sonnet-latest")
+        assert agent is not None, "Failed to create Claude agent"
+        print(f"Successfully created Claude agent with model {agent.model}")
 
         # Send a simple chat message
         print("\nSending a simple chat message...")
         response = await agent.chat("What is Python?")
 
-        print(f"\nResponse from Claude: {response[:500]}...")
-        assert response, "Response should not be empty"
-        assert len(response) > 50, "Response should be reasonably long"
+        # Check if the response is a structured AgentResponse or a string
+        if isinstance(response, dict):
+            # Check the response structure
+            assert "message" in response, "Structured response should have a 'message' field"
+            assert "tool_calls" in response, "Structured response should have a 'tool_calls' field"
+            # Extract the message for length validation
+            message = response["message"]
+            print(f"\nResponse from Claude: {message[:500]}...")
+            assert message, "Message should not be empty"
+            assert len(message) > 50, "Message should be reasonably long"
+        else:
+            # Backward compatibility with string responses
+            print(f"\nResponse from Claude: {response[:500]}...")
+            assert response, "Response should not be empty"
+            assert len(response) > 50, "Response should be reasonably long"
     except Exception as e:
         print(f"\nError during Claude chat: {type(e).__name__}: {str(e)}")
         pytest.fail(f"Test failed with exception: {str(e)}")

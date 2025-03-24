@@ -132,18 +132,13 @@ async def print_agent_information(agent: Any, information_type: str, content: st
     Uses the agent itself to generate styling and formatting.
 
     Args:
-        agent: The agent instance to use for generating formatted outpu
+        agent: The agent instance to use for generating formatted output
         information_type: Type of information (thinking, tool_call, tool_result, plan, etc.)
         content: The main content to display
         details: Optional details/metadata to display (dict or string)
     """
     try:
-        # Get terminal width (if needed for formatting)
-        # terminal_width = os.get_terminal_size().columns
-        # except Exception:
-        #     terminal_width = 80  # Default if can't get terminal size
-
-        # Convert details to a string representation if it's a dic
+        # Convert details to a string representation if it's a dict
         details_str = ""
         if details:
             if isinstance(details, dict):
@@ -154,7 +149,7 @@ async def print_agent_information(agent: Any, information_type: str, content: st
         # Create a temporary user info to avoid polluting the main conversation
         temp_user_info = {"temporary_context": True, "is_formatting_request": True}
 
-        # Prepare the formatting promp
+        # Prepare the formatting prompt
         format_prompt = f"""Format the following "{information_type}" information for console display:
 
 CONTENT: {content}
@@ -174,10 +169,16 @@ Command: Green
 Return ONLY the formatted text with ANSI codes that I can directly print to the console.
 Do not include explanation text or markdown code blocks."""
 
-        # Use the agent to generate the formatted outpu
-        formatted_output = await agent.chat(format_prompt, temp_user_info)
+        # Use the agent to generate the formatted output
+        agent_response = await agent.chat(format_prompt, temp_user_info)
 
-        # Print the outpu
+        # Handle structured response
+        if isinstance(agent_response, dict):
+            formatted_output = agent_response["message"]
+        else:
+            formatted_output = agent_response
+
+        # Print the output
         print(formatted_output)
 
     except Exception:
@@ -225,13 +226,19 @@ If user input is NOT needed:
 """
 
         # Get the analysis from the agent
-        analysis: str = await agent.chat(analysis_prompt, temp_user_info)
+        agent_response = await agent.chat(analysis_prompt, temp_user_info)
+
+        # Handle structured response
+        if isinstance(agent_response, dict):
+            analysis = agent_response["message"]
+        else:
+            analysis = agent_response
 
         # Process the result
         if "INPUT_NEEDED:" in analysis:
             # Extract the prompt from the response
             user_prompt = analysis.split("INPUT_NEEDED:", 1)[1].strip()
-            return user_prompt
+            return str(user_prompt)
 
         return False
 
@@ -247,7 +254,7 @@ If user input is NOT needed:
         if "?" in response:
             return "Please provide the requested information:"
 
-        # Check for common phrases
+        # Check for common phrases that request input
         for phrase in input_request_phrases:
             if phrase in response.lower():
                 return "Please provide the requested information:"
@@ -255,7 +262,7 @@ If user input is NOT needed:
         return False
 
 
-async def run_single_query(agent: Any, query: str, user_info: Optional[Dict[str, Any]] = None, use_custom_system_prompt: bool = False) -> str:
+async def run_single_query(agent: Any, query: str, user_info: Optional[Dict[str, Any]] = None, use_custom_system_prompt: bool = False) -> Union[str, Dict[str, Any]]:
     """
     Run a single query and return the response.
 
@@ -266,19 +273,26 @@ async def run_single_query(agent: Any, query: str, user_info: Optional[Dict[str,
         use_custom_system_prompt: Whether to use the custom system prompt
 
     Returns:
-        The agent's response
+        Either the agent's response string or the structured response object
     """
-    # If we're using the custom system prompt, inject it into the agent
-    if use_custom_system_prompt:
-        original_system_prompt = agent.system_prompt
-        agent.system_prompt = CURSOR_SYSTEM_PROMPT
-        agent_response: str = await agent.chat(query, user_info)
-        # Restore original system prompt
-        agent.system_prompt = original_system_prompt
-        return agent_response
+    try:
+        # If we're using the custom system prompt, inject it into the agent
+        if use_custom_system_prompt:
+            original_system_prompt = agent.system_prompt
+            agent.system_prompt = CURSOR_SYSTEM_PROMPT
+            agent_response: Union[str, Dict[str, Any]] = await agent.chat(query, user_info)
+            # Restore original system prompt
+            agent.system_prompt = original_system_prompt
+            return agent_response
 
-    response_text: str = await agent.chat(query, user_info)
-    return response_text
+        agent_response = await agent.chat(query, user_info)
+        return agent_response
+    except Exception as e:
+        # Log error but still return something valid for the return type
+        print(f"Error in run_single_query: {e}")
+        if isinstance(e, ValueError) and str(e).startswith("Too many tokens"):
+            return "Error: The query is too long for this model. Please make it shorter."
+        return f"Error processing query: {str(e)}"
 
 
 async def run_agent_interactive(
@@ -364,13 +378,14 @@ First, I'll create a plan for how to approach this task, then implement it step 
             # 1. Update workspace state
             user_info = update_workspace_state(user_info, created_or_modified_files)
 
-            # 2. Process query and get response
+            # 2. Process query and get response - now returns either string or structured response
             response, duration = await process_query_and_get_response(agent, query, user_info)
 
-            # 3. Process tool calls (returns updated tool call count)
-            tool_calls = extract_tool_calls(response)
-            current_iteration_tool_calls = await process_tool_calls(
-                agent, tool_calls, user_info, created_or_modified_files, current_iteration_tool_calls
+            # 3. Process tool calls - returns updated tool call count and tool calls
+            # Changed here - passing the full response object instead of extracted tool calls
+            agent_response = await run_single_query(agent, query, user_info, use_custom_system_prompt=True)
+            current_iteration_tool_calls, tool_calls = await process_tool_calls(
+                agent, agent_response, user_info, created_or_modified_files, current_iteration_tool_calls
             )
 
             # 4. Check if tool call limit reached
@@ -574,12 +589,12 @@ def is_task_complete(response: str) -> bool:
 
 async def get_continuation_prompt(agent: Any, iteration: int, last_response: str, user_input: Optional[str] = None) -> str:
     """
-    Generate a continuation prompt for the agent to continue its work.
+    Generate a continuation prompt for the next iteration.
 
     Args:
         agent: The agent instance
         iteration: Current iteration number
-        last_response: The agent's last response
+        last_response: Last response from the agent
         user_input: Optional user input to incorporate
 
     Returns:
@@ -589,33 +604,43 @@ async def get_continuation_prompt(agent: Any, iteration: int, last_response: str
         # Create a temporary user info to avoid polluting the main conversation
         temp_user_info = {"temporary_context": True, "is_system_request": True}
 
-        # Extract what happened in the last response
-        # We'll try to capture:
-        # 1. What tools were called
-        # 2. What results/progress was made
-        # 3. What issues or errors occurred
+        # Prepare the analysis prompt to determine the best continuation approach
+        analysis_prompt = f"""You're helping implement a multi-step solution. Review the current status and determine how to continue.
 
-        # Base analysis prompt
-        analysis_prompt = f"""Analyze the following assistant response from iteration {iteration} and help create a continuation prompt.
+    Current iteration: {iteration}
+    Last response:
+    {last_response}
 
-RESPONSE: {last_response}
+    {f"User input for continuation: {user_input}" if user_input else "No additional user input provided."}
 
-Analyze and summarize what happened in this interaction, focusing on:
-1. What tools were called and their results
-2. What was accomplished or learned
-3. What issues or errors occurred that need to be fixed
-4. What next steps were planned but not executed
+    What's the best continuation prompt for the next iteration? Consider:
+    1. Summarize progress so far
+    2. Identify next steps based on current status
+    3. Incorporate any user input
+    4. Frame the prompt to move the task forward
 
-Return a concise 1-2 sentence summary of the current state and progress.
-"""
+    Return ONLY the continuation prompt itself with no additional explanations or meta-text.
+    """
 
-        # Use the agent to generate the continuation prompt
-        continuation_prompt: str = await agent.chat(analysis_prompt, temp_user_info)
+        # Get the continuation prompt from the agent
+        agent_response = await agent.chat(analysis_prompt, temp_user_info)
+
+        # Handle structured response
+        if isinstance(agent_response, dict):
+            continuation_prompt: str = agent_response["message"]
+        else:
+            continuation_prompt = str(agent_response)
+
+        # If user input was provided, make sure it's incorporated
+        if user_input and user_input not in continuation_prompt:
+            continuation_prompt = f"The user has provided the following input: '{user_input}'\n\n{continuation_prompt}"
+
+        await print_agent_information(agent, "status", "Continuation prompt prepared for next iteration", continuation_prompt[:100] + "..." if len(continuation_prompt) > 100 else continuation_prompt)
 
         return continuation_prompt
 
     except Exception as ex:
-        # If there's an error getting a continuation prompt, just return the response
+        # If there's an error getting a continuation prompt, just return a simple fallback
         print(f"Error getting continuation prompt: {str(ex)}")
         # Return a default continuation prompt
         return "Continue with the next steps based on the previous results."
@@ -713,48 +738,70 @@ async def run_agent_chat(
     query: str = "",
 ) -> str:
     """
-    Run a single agent chat without interactive mode.
+    Run a simple one-shot agent chat.
 
     Args:
         model: The model to use (e.g., 'claude-3-5-sonnet-latest', 'gpt-4o')
-        query: The query to send to the agent
+        query: The query to send
 
     Returns:
         The agent's response
     """
-    # Create a simple fallback print function for before the agent is initialized
-    await print_status_before_agent(f"Creating agent with model {model}...")
+    # Create and configure agent
     agent = create_agent(model=model)
     agent.register_default_tools()
 
+    # Print prompt
     await print_agent_information(agent, "status", f"Sending query to agent: {query}")
-    response: str = await agent.chat(query)
+    agent_response = await agent.chat(query)
 
-    await print_agent_information(agent, "response", response)
+    # Handle either string or structured response
+    if isinstance(agent_response, dict):
+        response_text = agent_response["message"]
+    else:
+        response_text = agent_response
 
-    return response
+    await print_agent_information(agent, "response", response_text)
+
+    return response_text
 
 
 async def process_tool_calls(
     agent: Any,
-    tool_calls: List[Dict[str, Any]],
+    agent_response: Union[str, Dict[str, Any]],
     user_info: Dict[str, Any],
     created_or_modified_files: set,
     current_iteration_tool_calls: int
-) -> int:
+) -> Tuple[int, List[Dict[str, Any]]]:
     """
-    Process a list of tool calls and update tracking information.
+    Process tool calls from an agent response and update tracking information.
 
     Args:
         agent: The agent instance
-        tool_calls: List of tool call dictionaries
+        agent_response: Either a string response or a structured response dict
         user_info: User context information to update
         created_or_modified_files: Set of created/modified files to update
         current_iteration_tool_calls: Current count of tool calls in this iteration
 
     Returns:
-        Updated count of tool calls in this iteration
+        Tuple of (updated tool call count, extracted tool calls list)
     """
+    # Extract tool calls from the response - check if it's a structured response or string
+    if isinstance(agent_response, dict) and "tool_calls" in agent_response:
+        # It's a structured response with tool_calls directly available
+        tool_calls = []
+        for tc in agent_response["tool_calls"]:
+            # Convert to the format expected by the rest of the function
+            tool_calls.append({
+                "tool": tc["name"],
+                "args": tc["parameters"],
+                "result": tc["result"]
+            })
+    else:
+        # It's a string response, need to extract tool calls from text
+        response_str = agent_response if isinstance(agent_response, str) else agent_response["message"]
+        tool_calls = extract_tool_calls(response_str)
+
     for tool_call in tool_calls:
         tool_name = tool_call.get("tool", "")
         args = tool_call.get("args", {})
@@ -791,7 +838,7 @@ async def process_tool_calls(
                 # Convert command to string to ensure it's a valid type
                 await print_agent_information(agent, "command", f"Executed command: {command}")
 
-    return current_iteration_tool_calls
+    return current_iteration_tool_calls, tool_calls
 
 
 async def check_tool_call_limits(
@@ -991,9 +1038,15 @@ async def process_query_and_get_response(
     start_time = time.time()
 
     # Use the enhanced system prompt (like Cursor does)
-    response = await run_single_query(
+    agent_response: Union[str, Dict[str, Any]] = await run_single_query(
         agent, query, user_info, use_custom_system_prompt=True
     )
+
+    # Handle either string or structured response
+    if isinstance(agent_response, dict):
+        response = agent_response["message"]
+    else:
+        response = agent_response
 
     duration = time.time() - start_time
 

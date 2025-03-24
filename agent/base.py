@@ -1,8 +1,22 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union, TypedDict
 
 from .permissions import PermissionManager, PermissionOptions, PermissionRequest, PermissionStatus
+
+
+class AgentToolCall(TypedDict):
+    """TypedDict for representing a tool call made by an agent"""
+    name: str
+    parameters: Dict[str, Any]
+    result: Any
+
+
+class AgentResponse(TypedDict):
+    """TypedDict for representing the response from an agent"""
+    message: str
+    tool_calls: List[AgentToolCall]
+    thinking: Optional[str]
 
 
 class BaseAgent(ABC):
@@ -50,7 +64,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> str:
+    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
         """
         Send a message to the AI and get a response.
 
@@ -59,7 +73,8 @@ class BaseAgent(ABC):
             user_info: Optional dict containing info about the user's current state
 
         Returns:
-            The AI's response
+            Either a string response (for backward compatibility) or a structured AgentResponse
+            containing the message, tool_calls made, and optional thinking
         """
         pass
 
