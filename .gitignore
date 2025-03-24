@@ -85,3 +85,4 @@ venv_test/
 examples/demo_files/*
 test_permission/*
 test_permission
+tests/test_openai_file.txt

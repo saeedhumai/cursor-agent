@@ -300,6 +300,7 @@ async def run_agent_interactive(
     initial_query: str = "",
     max_iterations: int = 10,
     auto_continue: bool = True,
+    auto_continue_prompt: str = "auto continue",
 ) -> str:
     """
     Run the agent in interactive mode, allowing back-and-forth conversation.
@@ -408,6 +409,12 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 await print_agent_information(agent, "status", "Task has been completed successfully!")
                 break
 
+            elif next_action.action_type == ActionType.AUTO_CONTINUE:
+                # Auto-continue to next step
+                query = await get_continuation_prompt(agent, iteration, response, auto_continue_prompt)
+                await print_agent_information(agent, "status", "Automatically continuing to next step...")
+                time.sleep(2)  # Brief pause for readability
+
             elif next_action.action_type == ActionType.USER_INPUT:
                 # Get user input and create continuation
                 user_input = await get_user_input(next_action.prompt)
@@ -415,12 +422,6 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 current_iteration_tool_calls = 0
                 iteration += 1
                 continue
-
-            elif next_action.action_type == ActionType.AUTO_CONTINUE:
-                # Auto-continue to next step
-                query = await get_continuation_prompt(agent, iteration, response)
-                await print_agent_information(agent, "status", "Automatically continuing to next step...")
-                time.sleep(2)  # Brief pause for readability
 
             elif next_action.action_type == ActionType.MANUAL_CONTINUE:
                 # Get user direction for continuation
@@ -965,15 +966,15 @@ async def determine_next_steps(
     if is_task_complete(response):
         return NextAction(ActionType.COMPLETE)
 
-    # Check if agent is asking for input
+    # Determine continuation based on mode
+    if auto_continue:
+        return NextAction(ActionType.AUTO_CONTINUE)
+
+        # Check if agent is asking for input
     user_input_request = await check_for_user_input_request(agent, response)
     if user_input_request and isinstance(user_input_request, str):
         await print_agent_information(agent, "status", "The agent is requesting additional information from you.")
         return NextAction(ActionType.USER_INPUT, prompt=user_input_request)
-
-    # Determine continuation based on mode
-    if auto_continue:
-        return NextAction(ActionType.AUTO_CONTINUE)
     else:
         # Ensure prompt is explicitly a string to avoid type error
         input_prompt: str = "Your input: "
