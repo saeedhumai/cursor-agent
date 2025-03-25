@@ -129,11 +129,11 @@ def register_default_tools(agent: Any) -> None:
         lambda command, explanation=None, is_background=False, require_user_approval=True: system_tools.run_terminal_command(
             command, explanation, is_background, require_user_approval, agent
         ),
-        "Run a terminal command.",
+        "Run a terminal command. IMPORTANT: DO NOT use interactive commands that require user input. Always use non-interactive flags (like --yes, --quiet, or equivalent) for any commands that would otherwise prompt for input. For any scaffolding or initialization tools, always supply all arguments needed to prevent interactive prompts.",
         {
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": "The terminal command to execute"},
+                "command": {"type": "string", "description": "The terminal command to execute. MUST be non-interactive and should include all necessary flags to prevent prompts."},
                 "explanation": {
                     "type": "string",
                     "description": "Explanation of why this command needs to be run",
