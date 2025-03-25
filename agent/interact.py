@@ -423,6 +423,7 @@ First, I'll create a plan for how to approach this task, then implement it step 
 
             # Invoke callback with updated user_info if provided
             if on_user_info_update:
+                logger.info(f"Calling on_user_info_update callback with user_info: {user_info}")
                 try:
                     on_user_info_update(user_info)
                 except Exception as callback_error:
@@ -455,9 +456,10 @@ First, I'll create a plan for how to approach this task, then implement it step 
                 await print_agent_information(agent, "status", f"Session ended after reaching tool call limit ({total_tool_calls}/{tool_call_limit})")
                 break
 
-            if isinstance(total_tool_calls, list) and len(total_tool_calls) > 0:
-                logger.info(f"Made {len(total_tool_calls)} tool calls, will reduce the max_iterations to {max_iterations - 1}")
-                await print_agent_information(agent, "status", f"Made {len(total_tool_calls)} tool calls, will increase the max_iterations to {max_iterations + 1}")
+            # Check if we made tool calls in this iteration
+            if len(tool_calls) > 0:
+                logger.info(f"Made {len(tool_calls)} tool calls, will add to max_iterations")
+                await print_agent_information(agent, "status", f"Made {len(tool_calls)} tool calls, will increase the max_iterations to {max_iterations + 1}")
                 max_iterations += 1
 
             # 5. Determine next steps
@@ -498,16 +500,24 @@ First, I'll create a plan for how to approach this task, then implement it step 
 
             # Invoke iteration callback if provided
             if on_iteration:
+                # Convert NextAction to a serializable representation
+                next_action_data = {
+                    "action_type": next_action.action_type.name,
+                    "prompt": next_action.prompt
+                }
+
+                iteration_data = {
+                    "iteration": iteration,
+                    "query": query,
+                    "response": response,
+                    "agent_response": agent_response,
+                    "tool_calls": tool_calls,
+                    "total_tool_calls": total_tool_calls,
+                    "next_action": next_action_data
+                }
+
+                logger.info(f"Calling on_iteration callback with iteration data: {iteration_data}")
                 try:
-                    iteration_data = {
-                        "iteration": iteration,
-                        "query": query,
-                        "response": response,
-                        "agent_response": agent_response,
-                        "tool_calls": tool_calls,
-                        "total_tool_calls": total_tool_calls,
-                        "next_action": next_action
-                    }
                     on_iteration(iteration_data)
                 except Exception as callback_error:
                     logger.warning(f"Error in on_iteration callback: {callback_error}")
@@ -913,7 +923,7 @@ async def process_tool_calls(
         # It's a structured response with tool_calls directly available
         logger.debug(f"Found {len(agent_response['tool_calls'])} tool calls in structured response")
         tool_calls = []
-        for tc in agent_response["tool_calls"]:
+        for tc in agent_response['tool_calls']:
             # Convert to the format expected by the rest of the function
             tool_calls.append({
                 "tool": tc["name"],
@@ -926,6 +936,11 @@ async def process_tool_calls(
         logger.debug("Extracting tool calls from text response")
         tool_calls = extract_tool_calls(response_str)
         logger.debug(f"Extracted {len(tool_calls)} tool calls from text")
+
+    # Ensure total_tool_calls is an integer
+    if not isinstance(total_tool_calls, int):
+        total_tool_calls = 0
+        logger.warning("Reset total_tool_calls to 0 because it was not an integer")
 
     for tool_call in tool_calls:
         tool_name = tool_call.get("tool", "")
