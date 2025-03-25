@@ -4,11 +4,15 @@ Utility module for registering agent tools with permission handling.
 
 from typing import Any
 
+from ..logger import get_logger
 from . import (
     file_tools,
     search_tools,
     system_tools,
 )
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 def register_default_tools(agent: Any) -> None:
@@ -21,6 +25,8 @@ def register_default_tools(agent: Any) -> None:
     Args:
         agent: The agent instance to register tools with
     """
+    logger.info("Registering default tools for agent")
+    
     # File tools with permission checks
     agent.register_tool(
         "read_file",
@@ -45,6 +51,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["target_file"],
         },
     )
+    logger.debug("Registered tool: read_file")
 
     agent.register_tool(
         "edit_file",
@@ -65,6 +72,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["target_file", "instructions", "code_edit"],
         },
     )
+    logger.debug("Registered tool: edit_file")
 
     agent.register_tool(
         "delete_file",
@@ -78,6 +86,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["target_file"],
         },
     )
+    logger.debug("Registered tool: delete_file")
 
     agent.register_tool(
         "create_file",
@@ -95,6 +104,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["file_path", "content"],
         },
     )
+    logger.debug("Registered tool: create_file")
 
     agent.register_tool(
         "list_directory",
@@ -111,6 +121,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["relative_workspace_path"],
         },
     )
+    logger.debug("Registered tool: list_directory")
 
     # System tools
     agent.register_tool(
@@ -139,6 +150,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["command"],
         },
     )
+    logger.debug("Registered tool: run_terminal_command")
 
     # Search tools
     agent.register_tool(
@@ -163,6 +175,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["query"],
         },
     )
+    logger.debug("Registered tool: codebase_search")
 
     agent.register_tool(
         "grep_search",
@@ -190,6 +203,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["query"],
         },
     )
+    logger.debug("Registered tool: grep_search")
 
     agent.register_tool(
         "file_search",
@@ -203,6 +217,7 @@ def register_default_tools(agent: Any) -> None:
             "required": ["query"],
         },
     )
+    logger.debug("Registered tool: file_search")
 
     # Web search
     agent.register_tool(
@@ -220,3 +235,6 @@ def register_default_tools(agent: Any) -> None:
             "required": ["search_term"],
         },
     )
+    logger.debug("Registered tool: web_search")
+    
+    logger.info(f"Successfully registered {len(agent.available_tools)} tools")

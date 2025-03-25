@@ -5,8 +5,12 @@ from typing import Any, Dict, List, Optional, Callable, cast, Union
 from openai import AsyncOpenAI, BadRequestError, RateLimitError, APIError, AuthenticationError
 
 from .base import BaseAgent, AgentResponse, AgentToolCall
+from .logger import get_logger
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
 from .tools.register_tools import register_default_tools
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class OpenAIAgent(BaseAgent):
@@ -36,6 +40,8 @@ class OpenAIAgent(BaseAgent):
             permission_options: Permission configuration options
             **kwargs: Additional parameters to pass to the model
         """
+        logger.info(f"Initializing OpenAI agent with model {model}")
+
         super().__init__(
             api_key=api_key,
             model=model,
@@ -49,10 +55,12 @@ class OpenAIAgent(BaseAgent):
 
         # Initialize OpenAI client
         self.client = AsyncOpenAI(api_key=api_key)
+        logger.debug("Initialized OpenAI client")
 
         self.conversation_history = []
         self.available_tools = {}
         self.system_prompt = self._generate_system_prompt()
+        logger.debug(f"Generated system prompt ({len(self.system_prompt)} chars)")
 
     def _is_valid_api_key(self, api_key: str) -> bool:
         """
@@ -65,6 +73,7 @@ class OpenAIAgent(BaseAgent):
             True if the key is a valid format, False otherwise
         """
         if not api_key or not isinstance(api_key, str):
+            logger.warning("API key is empty or not a string")
             return False
 
         # OpenAI keys should start with sk-
@@ -73,6 +82,9 @@ class OpenAIAgent(BaseAgent):
         # Keys should be fairly long and not contain spaces
         valid_length = len(api_key) >= 20 and " " not in api_key
 
+        if not valid_prefix or not valid_length:
+            logger.warning("Invalid API key format")
+
         return valid_prefix and valid_length
 
     def _generate_system_prompt(self) -> str:
@@ -80,6 +92,7 @@ class OpenAIAgent(BaseAgent):
         Generate the system prompt that defines the agent's capabilities and behavior.
         This is an extensive prompt that replicates Claude's behavior in Cursor.
         """
+        logger.debug("Generating system prompt for OpenAI agent")
         return """
 You are a powerful agentic AI coding assistant, powered by OpenAI's advanced models. You operate exclusively in Cursor, the world's best IDE.
 
@@ -135,8 +148,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             List of tools in the format expected by OpenAI API, or None if no tools are registered
         """
         if not self.available_tools:
+            logger.debug("No tools registered")
             return None
 
+        logger.debug(f"Preparing {len(self.available_tools)} tools for OpenAI API")
         tools = []
         for name, tool_data in self.available_tools.items():
             tools.append(
@@ -153,6 +168,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     },
                 }
             )
+            logger.debug(f"Prepared tool: {name}")
+
         return tools if tools else None
 
     def _execute_tool_calls(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -165,6 +182,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Returns:
             List of tool call results
         """
+        logger.info(f"Executing {len(tool_calls)} tool calls")
         tool_results = []
 
         for call in tool_calls:
@@ -178,6 +196,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     except json.JSONDecodeError:
                         arguments = {}
                     tool_call_id = call.id
+                    logger.debug(f"Executing tool (object): {tool_name} (id: {tool_call_id})")
                 else:
                     # It's a dict
                     tool_name = call["function"]["name"]
@@ -187,16 +206,31 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         arguments = {}
                     # Cast to str to handle potential missing 'id' attribute
                     tool_call_id = cast(str, call.get("id", "unknown_id"))
+                    logger.debug(f"Executing tool (dict): {tool_name} (id: {tool_call_id})")
+
+                logger.debug(f"Tool arguments: {json.dumps(arguments)}")
 
                 if tool_name not in self.available_tools:
+                    logger.warning(f"Tool not found: {tool_name}")
                     result = {
                         "role": "tool",
                         "tool_call_id": tool_call_id,
                         "content": f"Error: Tool '{tool_name}' not found",
                     }
                 else:
+                    logger.debug(f"Calling function for tool: {tool_name}")
                     function = self.available_tools[tool_name]["function"]
                     result_content = function(**arguments)
+
+                    # Log a summary of the result
+                    if isinstance(result_content, dict) and "error" in result_content:
+                        logger.warning(f"Tool {tool_name} returned error: {result_content.get('error')}")
+                    else:
+                        content_preview = str(result_content)
+                        if len(content_preview) > 100:
+                            content_preview = content_preview[:100] + "..."
+                        logger.debug(f"Tool {tool_name} result: {content_preview}")
+
                     result = {
                         "role": "tool",
                         "tool_call_id": tool_call_id,
@@ -209,7 +243,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 tool_results.append(result)
             except Exception as e:
                 # Log the error - in production, this would go to a proper logging system
-                print(f"Error executing tool call: {str(e)}")
+                logger.error(f"Error executing tool call: {str(e)}")
                 # We still need to add a response to maintain the conversation flow
                 if "tool_call_id" in locals():
                     tool_results.append(
@@ -220,6 +254,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         }
                     )
 
+        logger.info(f"Completed {len(tool_results)} tool call results")
         return tool_results
 
     async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
@@ -237,11 +272,15 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
 
+        logger.info("Sending message to OpenAI API")
+        logger.debug(f"Message length: {len(formatted_message)} chars")
+
         # Add the user message to the conversation history
         self.conversation_history.append({"role": "user", "content": formatted_message})
 
         # Prepare the messages for the API call
         messages = [{"role": "system", "content": self.system_prompt}] + self.conversation_history
+        logger.debug(f"Total context: {len(messages)} messages")
 
         # Prepare tools
         tools = self._prepare_tools()
@@ -251,6 +290,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         try:
             # Make the API call
+            logger.debug(f"Calling OpenAI API with model: {self.model or 'gpt-4-turbo'}")
+            if tools:
+                logger.debug(f"Using {len(tools)} tools")
+
             response = await self.client.chat.completions.create(  # type: ignore
                 model=self.model if self.model else "gpt-4-turbo",
                 messages=messages,
@@ -259,6 +302,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 max_tokens=4096,
                 temperature=self.temperature,
             )
+            logger.info("Received response from OpenAI API")
 
             # Get the assistant's response
             assistant_message = response.choices[0].message
@@ -268,6 +312,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
             # Check if there are any tool calls
             if assistant_message.tool_calls:
+                logger.info(f"Response contains {len(assistant_message.tool_calls)} tool calls")
+
                 # Add the assistant's response to the conversation history
                 self.conversation_history.append(
                     {
@@ -307,6 +353,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     self.conversation_history.append(result)
 
                 # Make a follow-up API call with the tool results
+                logger.debug("Making follow-up API call with tool results")
                 follow_up_messages = (
                     messages
                     + [
@@ -328,10 +375,12 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     ]
                     + tool_results
                 )
+                logger.debug(f"Follow-up call with {len(follow_up_messages)} messages")
 
                 follow_up_response = await self.client.chat.completions.create(
                     model=self.model if self.model else "gpt-4-turbo", messages=follow_up_messages, max_tokens=4096, temperature=self.temperature
                 )
+                logger.info("Received follow-up response from OpenAI API")
 
                 # Add the assistant's follow-up response to the conversation history
                 follow_up_message = follow_up_response.choices[0].message
@@ -340,6 +389,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 )
 
                 response_text = follow_up_message.content or ""
+                logger.debug(f"Follow-up response text length: {len(response_text)} chars")
 
                 # Return structured response
                 return {
@@ -354,6 +404,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 )
 
                 response_text = assistant_message.content or ""
+                logger.debug(f"Response text length: {len(response_text)} chars")
 
                 # Return structured response
                 return {
@@ -364,6 +415,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         except AuthenticationError as e:
             error_msg = f"Error: Authentication failed. Please check your OpenAI API key. Details: {str(e)}"
+            logger.error(f"Authentication error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -371,6 +423,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except BadRequestError as e:
             error_msg = f"Error: Bad request to the OpenAI API. Details: {str(e)}"
+            logger.error(f"Bad request error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -378,6 +431,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except RateLimitError as e:
             error_msg = f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            logger.error(f"Rate limit error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -385,6 +439,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except APIError as e:
             error_msg = f"Error: OpenAI API error. Details: {str(e)}"
+            logger.error(f"API error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -392,6 +447,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except Exception as e:
             error_msg = f"Error: An unexpected error occurred. Details: {str(e)}"
+            logger.error(f"Unexpected error: {type(e).__name__}: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -403,6 +459,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Register all the default tools available to the agent.
         """
         # Use the centralized tool registration function
+        logger.info("Registering default tools")
         register_default_tools(self)
 
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
@@ -420,14 +477,18 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         # If yolo mode is enabled, check is already done in PermissionManager
         if self.permission_manager.options.yolo_mode:
+            logger.debug(f"Permission automatically granted in yolo mode for {permission_request.operation}")
             return PermissionStatus.GRANTED
 
         # Default implementation asks on console
+        logger.debug(f"Requesting permission for {permission_request.operation}")
         print(f"\n[PERMISSION REQUEST] {permission_request.operation}")
         print(f"Details: {json.dumps(permission_request.details, indent=2)}")
         response = input("Allow this operation? (y/n): ").strip().lower()
 
         if response == 'y' or response == 'yes':
+            logger.debug("Permission granted by user")
             return PermissionStatus.GRANTED
         else:
+            logger.debug("Permission denied by user")
             return PermissionStatus.DENIED

@@ -2,6 +2,10 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..base import BaseAgent
+from ..logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 def read_file(
@@ -32,7 +36,10 @@ def read_file(
         else:
             file_path = target_file
 
+        logger.debug(f"Reading file: {file_path}")
+        
         if not os.path.exists(file_path):
+            logger.warning(f"File does not exist: {file_path}")
             return {"error": f"File {file_path} does not exist"}
 
         with open(file_path, "r", encoding="utf-8") as f:
@@ -40,6 +47,7 @@ def read_file(
 
         if should_read_entire_file:
             content = "".join(lines)
+            logger.debug(f"Read entire file ({len(lines)} lines): {file_path}")
             return {"content": content, "total_lines": len(lines)}
 
         # Ensure offset and limit are valid
@@ -74,6 +82,7 @@ def read_file(
         if len(content_lines) > 0 and end_idx == len(lines):
             end_line = len(lines)
 
+        logger.debug(f"Read file {file_path} from line {offset} to {end_line}")
         return {
             "content": content,
             "start_line": offset,
@@ -83,6 +92,7 @@ def read_file(
         }
 
     except Exception as e:
+        logger.error(f"Error reading file {target_file}: {str(e)}")
         return {"error": str(e)}
 
 
@@ -105,6 +115,9 @@ def edit_file(
         Dict containing the status of the edit operation
     """
     try:
+        logger.info(f"Editing file: {target_file}")
+        logger.debug(f"Edit instructions: {instructions}")
+        
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -114,10 +127,12 @@ def edit_file(
             }
 
             if not agent.request_permission("edit_file", operation_details):
+                logger.warning(f"Permission denied to edit file: {target_file}")
                 return {"status": "error", "message": "Permission denied to edit file"}
 
         # Check if file exists
         if not os.path.exists(target_file):
+            logger.warning(f"File does not exist: {target_file}")
             return {"status": "error", "message": f"File {target_file} does not exist"}
 
         # Read the original content
@@ -131,9 +146,11 @@ def edit_file(
         with open(target_file, "w") as f:
             f.write(edited_content)
 
+        logger.info(f"Successfully edited file: {target_file}")
         return {"status": "success", "message": f"Successfully edited {target_file}"}
 
     except Exception as e:
+        logger.error(f"Error editing file {target_file}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 
@@ -152,6 +169,8 @@ def delete_file(
         Dict containing the status of the deletion
     """
     try:
+        logger.info(f"Deleting file: {target_file}")
+        
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -160,15 +179,19 @@ def delete_file(
             }
 
             if not agent.request_permission("delete_file", operation_details):
+                logger.warning(f"Permission denied to delete file: {target_file}")
                 return {"status": "error", "message": "Permission denied to delete file"}
 
         if not os.path.exists(target_file):
+            logger.warning(f"File does not exist: {target_file}")
             return {"status": "error", "message": f"File {target_file} does not exist"}
 
         os.remove(target_file)
+        logger.info(f"Successfully deleted file: {target_file}")
         return {"status": "success", "message": f"Deleted file {target_file}"}
 
     except Exception as e:
+        logger.error(f"Error deleting file {target_file}: {str(e)}")
         return {"error": str(e)}
 
 
@@ -189,6 +212,8 @@ def create_file(
         Dict containing the status of the creation
     """
     try:
+        logger.info(f"Creating file: {file_path}")
+        
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -197,6 +222,7 @@ def create_file(
             }
 
             if not agent.request_permission("create_file", operation_details):
+                logger.warning(f"Permission denied to create file: {file_path}")
                 return {"status": "error", "message": "Permission denied to create file"}
 
         # Create parent directories if they don't exist
@@ -209,11 +235,14 @@ def create_file(
             f.write(content)
 
         if file_exists:
+            logger.info(f"Updated existing file: {file_path}")
             return {"status": "success", "message": f"Updated file at {file_path}"}
         else:
+            logger.info(f"Created new file: {file_path}")
             return {"status": "success", "message": f"Created file at {file_path}"}
 
     except Exception as e:
+        logger.error(f"Error creating file {file_path}: {str(e)}")
         return {"error": str(e)}
 
 
@@ -233,10 +262,14 @@ def list_directory(
     """
     # No permission required for listing directories
     try:
+        logger.debug(f"Listing directory: {relative_workspace_path}")
+        
         if not os.path.exists(relative_workspace_path):
+            logger.warning(f"Directory does not exist: {relative_workspace_path}")
             return {"error": f"Directory {relative_workspace_path} does not exist"}
 
         if not os.path.isdir(relative_workspace_path):
+            logger.warning(f"Not a directory: {relative_workspace_path}")
             return {"error": f"{relative_workspace_path} is not a directory"}
 
         # Get the directory contents
@@ -248,9 +281,11 @@ def list_directory(
 
             contents.append({"name": item, "type": item_type, "size": item_size, "path": item_path})
 
+        logger.debug(f"Listed {len(contents)} items in directory: {relative_workspace_path}")
         return {"contents": contents}
 
     except Exception as e:
+        logger.error(f"Error listing directory {relative_workspace_path}: {str(e)}")
         return {"error": str(e)}
 
 
@@ -267,6 +302,7 @@ def apply_edit(original_content: str, code_edit: str) -> str:
     """
     # If no markers, simply return the code_edit
     if "// ... existing code ..." not in code_edit and "# ... existing code ..." not in code_edit:
+        logger.debug("No existing code markers found, replacing entire content")
         return code_edit
 
     original_lines = original_content.splitlines()
@@ -308,4 +344,5 @@ def apply_edit(original_content: str, code_edit: str) -> str:
     if original_index < len(original_lines):
         result_lines.extend(original_lines[original_index:])
 
+    logger.debug(f"Applied edit with {len(segments)} segments")
     return "\n".join(result_lines)

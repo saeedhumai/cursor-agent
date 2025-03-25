@@ -5,8 +5,12 @@ from typing import Any, Dict, List, Optional, Callable, Union
 from anthropic import APIError, AsyncAnthropic, AuthenticationError, BadRequestError, RateLimitError
 
 from .base import BaseAgent, AgentResponse, AgentToolCall
+from .logger import get_logger
 from .permissions import PermissionOptions, PermissionRequest, PermissionStatus
 from .tools.register_tools import register_default_tools
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class ClaudeAgent(BaseAgent):
@@ -36,6 +40,8 @@ class ClaudeAgent(BaseAgent):
             permission_options: Permission configuration options
             **kwargs: Additional parameters to pass to the model
         """
+        logger.info(f"Initializing Claude agent with model {model}")
+        
         super().__init__(
             api_key=api_key,
             model=model,
@@ -49,10 +55,12 @@ class ClaudeAgent(BaseAgent):
         
         # Initialize Anthropic client
         self.client = AsyncAnthropic(api_key=api_key)
+        logger.debug("Initialized Anthropic client")
 
         self.conversation_history = []
         self.available_tools = {}
         self.system_prompt = self._generate_system_prompt()
+        logger.debug(f"Generated system prompt ({len(self.system_prompt)} chars)")
 
     def _is_valid_api_key(self, api_key: str) -> bool:
         """
@@ -65,10 +73,12 @@ class ClaudeAgent(BaseAgent):
             True if the key is a valid format, False otherwise
         """
         if not api_key or not isinstance(api_key, str):
+            logger.warning("API key is empty or not a string")
             return False
 
         # Allow dummy keys in test environments
         if api_key == "sk-ant-dummy" or "dummy" in api_key:
+            logger.debug("Using dummy API key for testing")
             return True
 
         # Anthropic keys should start with sk-ant- or sk-
@@ -77,6 +87,9 @@ class ClaudeAgent(BaseAgent):
         # Keys should be fairly long and not contain spaces
         valid_length = len(api_key) >= 20 and " " not in api_key
 
+        if not valid_prefix or not valid_length:
+            logger.warning("Invalid API key format")
+            
         return valid_prefix and valid_length
 
     def _generate_system_prompt(self) -> str:
@@ -84,6 +97,7 @@ class ClaudeAgent(BaseAgent):
         Generate the system prompt that defines Claude's capabilities and behavior.
         This is an extensive prompt that replicates Claude's behavior in Cursor.
         """
+        logger.debug("Generating system prompt for Claude agent")
         return """
 You are a powerful agentic AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in Cursor, the world's best IDE.
 
@@ -139,8 +153,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             List of tools in the format expected by Claude API, or None if no tools are registered
         """
         if not self.available_tools:
+            logger.debug("No tools registered")
             return None
 
+        logger.debug(f"Preparing {len(self.available_tools)} tools for Claude API")
         tools = []
         for name, tool_data in self.available_tools.items():
             # Claude tools format:
@@ -170,6 +186,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 },
             }
             tools.append(tool)
+            logger.debug(f"Prepared tool: {name}")
+            
         return tools if tools else None
 
     def _execute_tool_calls(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -182,12 +200,16 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Returns:
             List of tool call results formatted for the Claude API
         """
+        logger.info(f"Executing {len(tool_calls)} tool calls")
         tool_results = []
 
         for call in tool_calls:
             tool_name = call["name"]
             tool_id = call.get("id")
             arguments = call.get("input", {})
+            
+            logger.debug(f"Executing tool: {tool_name} (id: {tool_id})")
+            logger.debug(f"Tool arguments: {json.dumps(arguments)}")
 
             # Format for user message with tool_result as required by the Claude API
             result_message = {"role": "user", "content": []}
@@ -195,6 +217,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             if tool_name not in self.available_tools:
                 # Add error result
                 error_msg = f"Tool '{tool_name}' not found. Error: Tool not available."
+                logger.warning(f"Tool not found: {tool_name}")
                 result_message["content"].append(
                     {
                         "type": "tool_result",
@@ -207,10 +230,18 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 try:
                     function = self.available_tools[tool_name]["function"]
                     # Convert input to the expected format for the function
+                    logger.debug(f"Calling function for tool: {tool_name}")
                     result = function(**arguments)
 
                     # Format the result based on whether it's a string or a JSON-serializable object
                     content = result if isinstance(result, str) else json.dumps(result)
+                    
+                    # Log a summary of the result
+                    if isinstance(result, dict) and "error" in result:
+                        logger.warning(f"Tool {tool_name} returned error: {result.get('error')}")
+                    else:
+                        content_preview = content[:100] + "..." if len(content) > 100 else content
+                        logger.debug(f"Tool {tool_name} result: {content_preview}")
 
                     # Add tool result
                     result_message["content"].append(
@@ -218,6 +249,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     )
                 except Exception as e:
                     error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                    logger.error(f"Error executing tool {tool_name}: {str(e)}")
                     result_message["content"].append(
                         {
                             "type": "tool_result",
@@ -231,6 +263,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             if result_message["content"]:
                 tool_results.append(result_message)
 
+        logger.info(f"Completed {len(tool_results)} tool call results")
         return tool_results
 
     async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
@@ -247,6 +280,9 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
+        
+        logger.info("Sending message to Claude API")
+        logger.debug(f"Message length: {len(formatted_message)} chars")
 
         # Add the user message to the conversation history
         self.conversation_history.append({"role": "user", "content": formatted_message})
@@ -296,11 +332,21 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             if tools and use_tools:
                 api_params["tools"] = tools
 
+            # Log API call
+            logger.debug(f"Calling Claude API with {len(typed_messages)} messages")
+            logger.debug(f"Using model: {api_params['model']}")
+            if tools:
+                logger.debug(f"Using {len(tools)} tools")
+
             # Make the API call
+            logger.debug("Initiating API call to Claude")
             response = await self.client.messages.create(**api_params)  # type: ignore
+            logger.info("Received response from Claude API")
 
             # Process any tool calls
             if response.content and any(block.type == "tool_use" for block in response.content):
+                logger.info("Response contains tool calls")
+                
                 # Add assistant message with tool calls to conversation history
                 assistant_content = []
                 for block in response.content:
@@ -324,6 +370,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             {"name": block.name, "id": block.id, "input": block.input}
                         )
 
+                logger.info(f"Extracted {len(tool_calls)} tool calls from response")
+                
                 # Execute tool calls
                 tool_results = self._execute_tool_calls(tool_calls)
                 
@@ -353,6 +401,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 if tool_results:
                     for result in tool_results:
                         self.conversation_history.append(result)
+                    
+                    logger.debug("Making follow-up API call with tool results")
 
                     # Make a follow-up API call with the tool results
                     follow_up_messages = []
@@ -363,6 +413,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             follow_up_messages.append(msg)
 
                     # Make a follow-up API call with the tool results
+                    logger.debug(f"Making follow-up call with {len(follow_up_messages)} messages")
                     follow_up_response = await self.client.messages.create(  # type: ignore
                         model=self.model if self.model else "claude-3-5-sonnet-latest",
                         system=self.system_prompt,  # System prompt as a separate parameter
@@ -370,6 +421,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         max_tokens=4096,
                         temperature=self.temperature,
                     )
+                    logger.info("Received follow-up response from Claude API")
 
                     # Add the assistant's follow-up response to the conversation history
                     self.conversation_history.append(
@@ -380,6 +432,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     response_text = "".join(
                         block.text for block in follow_up_response.content if block.type == "text"
                     )
+                    logger.debug(f"Follow-up response text length: {len(response_text)} chars")
                     
                     # Return structured response
                     return {
@@ -390,6 +443,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 else:
                     # No valid tool results were generated
                     error_msg = "Error: Failed to execute tool calls. Please try a different query."
+                    logger.warning("No valid tool results were generated")
                     
                     return {
                         "message": error_msg,
@@ -401,6 +455,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 response_text = "".join(
                     block.text for block in response.content if block.type == "text"
                 )
+                logger.debug(f"Response text length: {len(response_text)} chars")
 
                 # Add the assistant's response to the conversation history
                 self.conversation_history.append({"role": "assistant", "content": response.content})
@@ -414,6 +469,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         except AuthenticationError as e:
             error_msg = f"Error: Authentication failed. Please check your Anthropic API key. Details: {str(e)}"
+            logger.error(f"Authentication error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -425,6 +481,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             if hasattr(e, "request"):
                 request_info = f"\nRequest information: {e.request}"
             error_msg = f"Error: Bad request to the Anthropic API. Details: {str(e)}{request_info}"
+            logger.error(f"Bad request error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -432,6 +489,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except RateLimitError as e:
             error_msg = f"Error: Rate limit exceeded. Please try again later. Details: {str(e)}"
+            logger.error(f"Rate limit error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -439,6 +497,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except APIError as e:
             error_msg = f"Error: Anthropic API error. Details: {str(e)}"
+            logger.error(f"API error: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -446,6 +505,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
         except Exception as e:
             error_msg = f"Error: An unexpected error occurred. Details: {type(e).__name__}: {str(e)}"
+            logger.error(f"Unexpected error: {type(e).__name__}: {str(e)}")
             return {
                 "message": error_msg,
                 "tool_calls": [],
@@ -457,6 +517,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Register all the default tools available to the agent.
         """
         # Use the centralized tool registration function
+        logger.info("Registering default tools")
         register_default_tools(self)
 
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
@@ -474,14 +535,18 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         # If yolo mode is enabled, check is already done in PermissionManager
         if self.permission_manager.options.yolo_mode:
+            logger.debug(f"Permission automatically granted in yolo mode for {permission_request.operation}")
             return PermissionStatus.GRANTED
             
         # Default implementation asks on console
+        logger.debug(f"Requesting permission for {permission_request.operation}")
         print(f"\n[PERMISSION REQUEST] {permission_request.operation}")
         print(f"Details: {json.dumps(permission_request.details, indent=2)}")
         response = input("Allow this operation? (y/n): ").strip().lower()
         
         if response == 'y' or response == 'yes':
+            logger.debug("Permission granted by user")
             return PermissionStatus.GRANTED
         else:
+            logger.debug("Permission denied by user")
             return PermissionStatus.DENIED

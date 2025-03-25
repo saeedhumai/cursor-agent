@@ -10,8 +10,12 @@ from typing import Optional, Callable, Any
 
 from agent.base import BaseAgent
 from agent.claude_agent import ClaudeAgent
+from agent.logger import get_logger
 from agent.openai_agent import OpenAIAgent
 from agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+
+# Initialize logger
+logger = get_logger(__name__)
 
 # Dictionary mapping providers to their supported models
 # This makes it easy to determine which provider to use based on a model name
@@ -71,19 +75,29 @@ def create_agent(
         An agent instance configured with the specified parameters
     """
     model = model.lower()  # Normalize model name to lowercase
+    logger.info(f"Creating agent with model: {model}")
+    logger.debug(f"Agent parameters: temperature={temperature}, timeout={timeout}")
 
     # Set up permission options if not provided
     if permissions is None:
         permissions = PermissionOptions()
+        logger.debug("Using default permission options")
+    else:
+        logger.debug(f"Using custom permission options, yolo_mode={permissions.yolo_mode}")
 
     # Handle OpenAI models
     if any(name in model for name in ["gpt-", "openai"]):
+        logger.debug("Detected OpenAI model")
         # Use environment variable if no API key is provided
         if api_key is None:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
+                logger.error("OpenAI API key not provided and not found in environment")
                 raise ValueError("OpenAI API key not provided and not found in environment")
+            else:
+                logger.debug("Using OpenAI API key from environment")
 
+        logger.info(f"Creating OpenAIAgent with model {model}")
         return OpenAIAgent(
             model=model,
             api_key=api_key,
@@ -96,12 +110,17 @@ def create_agent(
 
     # Handle Anthropic/Claude models
     elif any(name in model for name in ["claude", "anthropic"]):
+        logger.debug("Detected Anthropic/Claude model")
         # Use environment variable if no API key is provided
         if api_key is None:
             api_key = os.getenv("ANTHROPIC_API_KEY")
             if not api_key:
+                logger.error("Anthropic API key not provided and not found in environment")
                 raise ValueError("Anthropic API key not provided and not found in environment")
+            else:
+                logger.debug("Using Anthropic API key from environment")
 
+        logger.info(f"Creating ClaudeAgent with model {model}")
         return ClaudeAgent(
             model=model,
             api_key=api_key,
@@ -114,4 +133,5 @@ def create_agent(
 
     # Raise error for unsupported models
     else:
+        logger.error(f"Unsupported model: {model}")
         raise ValueError(f"Unsupported model: {model}")
