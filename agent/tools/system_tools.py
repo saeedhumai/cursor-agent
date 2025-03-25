@@ -1,4 +1,5 @@
 import subprocess
+import time
 from typing import Any, Dict, Optional
 
 from ..base import BaseAgent
@@ -32,7 +33,10 @@ def run_terminal_command(
         logger.info(f"Executing terminal command: {command}")
         if explanation:
             logger.debug(f"Command explanation: {explanation}")
-        logger.debug(f"Command options - background: {is_background}, require_approval: {require_user_approval}")
+            
+        # Get timeout from agent if available, otherwise use default
+        timeout = agent.default_tool_timeout if agent else 300
+        logger.debug(f"Command options - background: {is_background}, require_approval: {require_user_approval}, timeout: {timeout}s")
         
         # For safety, we'll add a check to prevent destructive commands
         dangerous_commands = ["rm -rf", "sudo rm", "dd", "mkfs", "format", ":(){:|:&};:"]
@@ -74,30 +78,73 @@ def run_terminal_command(
                 if " | cat" not in command:
                     command = f"{command} | cat"
                     logger.debug(f"Added '| cat' to pager command: {command}")
+                    
+        # Add timeout command for non-background commands if available on system
+        if not is_background:
+            # Use timeout command on Unix-like systems
+            if subprocess.run("which timeout", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode == 0:
+                command = f"timeout {timeout} {command}"
+                logger.debug(f"Added timeout wrapper: {command}")
 
         logger.debug(f"Executing final command: {command}")
-        # Run the command
+        
+        # Start the process
+        start_time = time.time()
         process = subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True
         )
+        
+        # For background processes, don't wait
+        if is_background:
+            stdout = f"Command running in background with PID {process.pid}"
+            stderr = ""
+            exit_code = 0
+        else:
+            # Wait for process to complete with timeout
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+                exit_code = process.returncode
+            except subprocess.TimeoutExpired:
+                # Kill the process if it exceeds timeout
+                logger.warning(f"Command timed out after {timeout} seconds: {command}")
+                
+                # Try gentle termination first
+                process.terminate()
+                try:
+                    # Give it a short grace period to terminate
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # If still running after grace period, force kill
+                    logger.warning(f"Forcefully killing command: {command}")
+                    process.kill()
+                
+                # Get any output that was produced before timeout
+                stdout, stderr = process.communicate()
+                exit_code = -1  # Special code for timeout
+                stderr += f"\nCommand timed out after {timeout} seconds"
 
-        stdout, stderr = process.communicate()
-
+        execution_time = time.time() - start_time
+        
         # Prepare the output
         result = {
             "command": command,
-            "exit_code": process.returncode,
+            "exit_code": exit_code,
             "stdout": stdout,
             "stderr": stderr,
+            "execution_time": execution_time,
+            "timed_out": exit_code == -1
         }
 
-        if process.returncode != 0:
-            result["error"] = f"Command failed with exit code {process.returncode}"
-            logger.warning(f"Command failed with exit code {process.returncode}")
+        if exit_code != 0 and exit_code != -1:
+            result["error"] = f"Command failed with exit code {exit_code}"
+            logger.warning(f"Command failed with exit code {exit_code}")
             if stderr:
                 logger.debug(f"Command stderr: {stderr}")
+        elif exit_code == -1:
+            result["error"] = f"Command timed out after {timeout} seconds"
+            logger.warning(f"Command timed out: {command}")
         else:
-            logger.info(f"Command executed successfully with exit code {process.returncode}")
+            logger.info(f"Command executed successfully in {execution_time:.2f}s with exit code {exit_code}")
 
         return result
 

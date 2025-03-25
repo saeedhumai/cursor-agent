@@ -129,11 +129,11 @@ def register_default_tools(agent: Any) -> None:
         lambda command, explanation=None, is_background=False, require_user_approval=True: system_tools.run_terminal_command(
             command, explanation, is_background, require_user_approval, agent
         ),
-        "Run a terminal command. IMPORTANT: DO NOT use interactive commands that require user input. Always use non-interactive flags (like --yes, --quiet, or equivalent) for any commands that would otherwise prompt for input. For any scaffolding or initialization tools, always supply all arguments needed to prevent interactive prompts.",
+        "Run a terminal command. IMPORTANT: Always use non-interactive flags that works for the command you are running (like --yes, -y, --no-interaction, yes | , --quiet, or equivalent). i.e git commit -m 'commit message' --no-interaction or yes | npx create-next-app@latest --no-interactive",
         {
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": "The terminal command to execute. MUST be non-interactive and should include all necessary flags to prevent prompts."},
+                "command": {"type": "string", "description": "The terminal command to execute. MUST be non-interactive and should include all necessary flags to prevent or bypass prompts."},
                 "explanation": {
                     "type": "string",
                     "description": "Explanation of why this command needs to be run",

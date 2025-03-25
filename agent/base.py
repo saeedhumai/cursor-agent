@@ -1,15 +1,34 @@
-import json
-from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Union, TypedDict
+"""Base agent module for handling agent operations."""
 
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Callable, Union, TypedDict
+import json
+
+from .logger import get_logger
 from .permissions import PermissionManager, PermissionOptions, PermissionRequest, PermissionStatus
+
+
+# Initialize logger
+logger = get_logger(__name__)
+
+
+class ToolCall(TypedDict):
+    name: str
+    parameters: Dict[str, Any]
+
+
+class ToolResponse(TypedDict):
+    output: str
+    error: Optional[str]
 
 
 class AgentToolCall(TypedDict):
     """TypedDict for representing a tool call made by an agent"""
     name: str
     parameters: Dict[str, Any]
-    result: Any
+    output: str
+    error: Optional[str]
+    thinking: Optional[str]
 
 
 class AgentResponse(TypedDict):
@@ -31,6 +50,7 @@ class BaseAgent(ABC):
         model: Optional[str] = None,
         permission_options: Optional[PermissionOptions] = None,
         permission_callback: Optional[Callable[[PermissionRequest], PermissionStatus]] = None,
+        default_tool_timeout: int = 300,
     ):
         """
         Initialize the agent.
@@ -40,6 +60,7 @@ class BaseAgent(ABC):
             model: Model to use. If not provided, will use the default model.
             permission_options: Configuration options for permissions
             permission_callback: Optional callback for handling permission requests
+            default_tool_timeout: Default timeout for tool calls in seconds (default: 300s)
         """
         self.api_key: Optional[str] = api_key
         self.model: Optional[str] = model
@@ -52,6 +73,11 @@ class BaseAgent(ABC):
             options=permission_options or PermissionOptions(),
             callback=permission_callback
         )
+
+        # Default timeout for tool executions
+        self.default_tool_timeout = default_tool_timeout
+
+        logger.debug(f"Initialized {self.__class__.__name__} with default tool timeout: {default_tool_timeout}s")
 
     @abstractmethod
     def _generate_system_prompt(self) -> str:
@@ -94,6 +120,7 @@ class BaseAgent(ABC):
             "function": function,
             "schema": {"name": name, "description": description, "parameters": parameters},
         }
+        logger.debug(f"Registered tool: {name}")
 
     @abstractmethod
     def _prepare_tools(self) -> Any:
@@ -187,3 +214,4 @@ class BaseAgent(ABC):
         # Import here to avoid circular imports
         from .tools.register_tools import register_default_tools
         register_default_tools(self)
+        logger.info(f"Registered {len(self.available_tools)} default tools")

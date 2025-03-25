@@ -57,6 +57,7 @@ def create_agent(
     timeout: int = 180,
     permission_callback: Optional[Callable[[PermissionRequest], PermissionStatus]] = None,
     permissions: Optional[PermissionOptions] = None,
+    default_tool_timeout: int = 300,
     **kwargs: Any
 ) -> BaseAgent:
     """
@@ -69,6 +70,7 @@ def create_agent(
         timeout: The timeout in seconds for model responses
         permission_callback: A callback function to handle permission requests
         permissions: Optional PermissionOptions object containing permission settings
+        default_tool_timeout: Maximum execution time in seconds for tool calls (default: 300)
         **kwargs: Additional model-specific arguments
 
     Returns:
@@ -76,7 +78,7 @@ def create_agent(
     """
     model = model.lower()  # Normalize model name to lowercase
     logger.info(f"Creating agent with model: {model}")
-    logger.debug(f"Agent parameters: temperature={temperature}, timeout={timeout}")
+    logger.debug(f"Agent parameters: temperature={temperature}, timeout={timeout}, default_tool_timeout={default_tool_timeout}")
 
     # Set up permission options if not provided
     if permissions is None:
@@ -105,6 +107,7 @@ def create_agent(
             timeout=timeout,
             permission_callback=permission_callback,
             permission_options=permissions,
+            default_tool_timeout=default_tool_timeout,
             **kwargs
         )
 
@@ -128,6 +131,7 @@ def create_agent(
             timeout=timeout,
             permission_callback=permission_callback,
             permission_options=permissions,
+            default_tool_timeout=default_tool_timeout,
             **kwargs
         )
 

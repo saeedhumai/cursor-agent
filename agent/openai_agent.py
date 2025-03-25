@@ -26,6 +26,7 @@ class OpenAIAgent(BaseAgent):
         timeout: int = 180,
         permission_callback: Optional[Callable[[PermissionRequest], PermissionStatus]] = None,
         permission_options: Optional[PermissionOptions] = None,
+        default_tool_timeout: int = 300,
         **kwargs
     ):
         """
@@ -38,6 +39,7 @@ class OpenAIAgent(BaseAgent):
             timeout: Timeout in seconds for API requests
             permission_callback: Optional callback for permission requests
             permission_options: Permission configuration options
+            default_tool_timeout: Default timeout in seconds for tool calls (default: 300s)
             **kwargs: Additional parameters to pass to the model
         """
         logger.info(f"Initializing OpenAI agent with model {model}")
@@ -46,7 +48,8 @@ class OpenAIAgent(BaseAgent):
             api_key=api_key,
             model=model,
             permission_options=permission_options,
-            permission_callback=permission_callback
+            permission_callback=permission_callback,
+            default_tool_timeout=default_tool_timeout
         )
 
         self.temperature = temperature
@@ -61,6 +64,7 @@ class OpenAIAgent(BaseAgent):
         self.available_tools = {}
         self.system_prompt = self._generate_system_prompt()
         logger.debug(f"Generated system prompt ({len(self.system_prompt)} chars)")
+        logger.debug(f"Tool timeouts set to {default_tool_timeout}s")
 
     def _is_valid_api_key(self, api_key: str) -> bool:
         """
