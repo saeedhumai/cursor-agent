@@ -86,3 +86,5 @@ examples/demo_files/*
 test_permission/*
 test_permission
 tests/test_openai_file.txt
+tests/test_files_tmp/*
+tests/test_files_tmp

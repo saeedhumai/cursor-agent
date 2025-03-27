@@ -2,13 +2,14 @@
 Utility module for registering agent tools with permission handling.
 """
 
-from typing import Any
+from typing import Any, List
 
 from ..logger import get_logger
 from . import (
     file_tools,
     search_tools,
     system_tools,
+    image_tools,
 )
 
 # Initialize logger
@@ -236,5 +237,28 @@ def register_default_tools(agent: Any) -> None:
         },
     )
     logger.debug("Registered tool: web_search")
+    
+    # Image query tool
+    agent.register_tool(
+        "query_images",
+        lambda query, image_paths: image_tools.query_images(query, image_paths, agent),
+        "Query an AI model about one or more images.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The question or query about the image(s)",
+                },
+                "image_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of local paths to image files to analyze",
+                },
+            },
+            "required": ["query", "image_paths"],
+        },
+    )
+    logger.debug("Registered tool: query_images")
     
     logger.info(f"Successfully registered {len(agent.available_tools)} tools")

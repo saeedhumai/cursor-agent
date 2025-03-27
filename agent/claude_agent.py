@@ -554,3 +554,111 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         else:
             logger.debug("Permission denied by user")
             return PermissionStatus.DENIED
+
+    async def query_image(self, image_paths: List[str], query: str) -> str:
+        """
+        Query the Claude model about one or more images.
+        
+        Args:
+            image_paths: List of paths to local image files
+            query: The query/question about the image(s)
+            
+        Returns:
+            The model's response about the image(s)
+        """
+        import os
+        import base64
+        import mimetypes
+
+        logger.info(f"Processing image query with {len(image_paths)} images")
+        
+        # Validate image paths
+        for path in image_paths:
+            if not os.path.exists(path):
+                error_msg = f"Image file not found: {path}"
+                logger.error(error_msg)
+                return error_msg
+        
+        # Prepare images for the API
+        content_blocks = [
+            {"type": "text", "text": query}
+        ]
+        
+        for path in image_paths:
+            try:
+                with open(path, "rb") as image_file:
+                    # Get MIME type for the image
+                    mime_type, _ = mimetypes.guess_type(path)
+                    if not mime_type or not mime_type.startswith('image/'):
+                        # Default to jpeg if type cannot be determined
+                        mime_type = "image/jpeg"
+                    
+                    # Read and encode the image
+                    image_data = image_file.read()
+                    encoded_image = base64.b64encode(image_data).decode('utf-8')
+                    
+                    # Add image to content blocks
+                    content_blocks.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": encoded_image
+                        }
+                    })
+                    logger.debug(f"Processed image: {path} ({mime_type})")
+            except Exception as e:
+                error_msg = f"Error processing image {path}: {str(e)}"
+                logger.error(error_msg)
+                return error_msg
+        
+        try:
+            # Set up the system prompt for image analysis
+            image_system_prompt = "You are Claude, an AI assistant that can analyze and describe images. Provide detailed and accurate information about the images based on the user's query."
+            
+            # Call the Claude API
+            logger.debug(f"Calling Claude API for image analysis with model: {self.model}")
+            
+            response = await self.client.messages.create(
+                model=self.model,
+                system=image_system_prompt,
+                max_tokens=1024,
+                temperature=self.temperature,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content_blocks
+                    }
+                ]
+            )
+            
+            # Extract and return the assistant's response
+            if response.content and len(response.content) > 0:
+                result = ""
+                for content_block in response.content:
+                    if content_block.type == "text":
+                        result += content_block.text
+                
+                logger.info("Successfully processed image query")
+                return result
+            else:
+                error_msg = "No response received from Claude API"
+                logger.error(error_msg)
+                return error_msg
+            
+        except BadRequestError as e:
+            error_msg = f"Bad request to Claude API: {str(e)}"
+            logger.error(error_msg)
+            return error_msg
+        except RateLimitError as e:
+            error_msg = f"Rate limit exceeded: {str(e)}"
+            logger.error(error_msg)
+            return error_msg
+        except APIError as e:
+            error_msg = f"Claude API error: {str(e)}"
+            logger.error(error_msg)
+            return error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error processing image query: {str(e)}"
+            logger.error(error_msg)
+            return error_msg
