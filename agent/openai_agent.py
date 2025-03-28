@@ -500,11 +500,11 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
     async def query_image(self, image_paths: List[str], query: str) -> str:
         """
         Query the OpenAI model about one or more images.
-        
+
         Args:
             image_paths: List of paths to local image files
             query: The query/question about the image(s)
-            
+
         Returns:
             The model's response about the image(s)
         """
@@ -512,14 +512,14 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         import base64
 
         logger.info(f"Processing image query with {len(image_paths)} images")
-        
+
         # Validate image paths
         for path in image_paths:
             if not os.path.exists(path):
                 error_msg = f"Image file not found: {path}"
                 logger.error(error_msg)
                 return error_msg
-        
+
         # Prepare images for the API
         image_contents = []
         for path in image_paths:
@@ -536,10 +536,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         "webp": "image/webp"
                     }
                     mime_type = mime_types.get(file_extension, "application/octet-stream")
-                    
+
                     # Encode image as base64
                     encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-                    
+
                     image_contents.append({
                         "type": "image_url",
                         "image_url": {
@@ -551,24 +551,24 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 error_msg = f"Error processing image {path}: {str(e)}"
                 logger.error(error_msg)
                 return error_msg
-        
+
         try:
             # Prepare the message with images and query
             messages = [
                 {"role": "system", "content": "You are an AI assistant that can analyze images."},
                 {
-                    "role": "user", 
+                    "role": "user",
                     "content": [
                         {"type": "text", "text": query},
                         *image_contents
                     ]
                 }
             ]
-            
+
             # Call the OpenAI API with GPT-4 Vision
             logger.debug(f"Calling OpenAI API for image analysis with model: {self.model}")
             vision_model = "gpt-4o" if self.model.startswith("gpt-4") else "gpt-4o"
-            
+
             response = await self.client.chat.completions.create(
                 model=vision_model,
                 messages=messages,
@@ -576,7 +576,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 temperature=self.temperature,
                 timeout=self.timeout
             )
-            
+
             # Extract and return the assistant's response
             if response.choices and len(response.choices) > 0:
                 result = response.choices[0].message.content or ""
@@ -586,7 +586,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 error_msg = "No response received from OpenAI API"
                 logger.error(error_msg)
                 return error_msg
-            
+
         except BadRequestError as e:
             error_msg = f"Bad request to OpenAI API: {str(e)}"
             logger.error(error_msg)

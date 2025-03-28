@@ -2,7 +2,7 @@
 Utility module for registering agent tools with permission handling.
 """
 
-from typing import Any, List
+from typing import Any
 
 from ..logger import get_logger
 from . import (

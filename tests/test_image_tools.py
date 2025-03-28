@@ -6,13 +6,14 @@ import os
 import tempfile
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any, Generator, Optional, Union
 
 from agent.tools.image_tools import query_images
 from agent.permissions import PermissionManager, PermissionOptions, PermissionStatus
 
 
 @pytest.fixture
-def mock_agent():
+def mock_agent() -> MagicMock:
     """
     Create a mock agent with permission handling and query_image method.
     """
@@ -28,7 +29,7 @@ def mock_agent():
 
 
 @pytest.fixture
-def test_image():
+def test_image() -> str:
     """
     Create a temporary test image file.
     """
@@ -39,7 +40,7 @@ def test_image():
 
 
 @pytest.mark.asyncio
-async def test_query_images_successful(mock_agent, test_image):
+async def test_query_images_successful(mock_agent: MagicMock, test_image: str) -> None:
     """
     Test that query_images successfully calls the agent's query_image method.
     """
@@ -54,7 +55,7 @@ async def test_query_images_successful(mock_agent, test_image):
 
 
 @pytest.mark.asyncio
-async def test_query_images_nonexistent_file(mock_agent):
+async def test_query_images_nonexistent_file(mock_agent: MagicMock) -> None:
     """
     Test handling of nonexistent image files.
     """
@@ -69,7 +70,7 @@ async def test_query_images_nonexistent_file(mock_agent):
 
 
 @pytest.mark.asyncio
-async def test_query_images_invalid_extension(mock_agent, test_image):
+async def test_query_images_invalid_extension(mock_agent: MagicMock, test_image: str) -> None:
     """
     Test handling of files with invalid extensions.
     """
@@ -93,7 +94,7 @@ async def test_query_images_invalid_extension(mock_agent, test_image):
 
 
 @pytest.mark.asyncio
-async def test_query_images_permission_denied(mock_agent, test_image):
+async def test_query_images_permission_denied(mock_agent: MagicMock, test_image: str) -> None:
     """
     Test handling of permission denial.
     """
@@ -110,7 +111,7 @@ async def test_query_images_permission_denied(mock_agent, test_image):
 
 
 @pytest.mark.asyncio
-async def test_query_images_agent_error(mock_agent, test_image):
+async def test_query_images_agent_error(mock_agent: MagicMock, test_image: str) -> None:
     """
     Test handling of agent errors.
     """
@@ -127,7 +128,7 @@ async def test_query_images_agent_error(mock_agent, test_image):
 
 
 # Clean up test image after all tests
-def teardown_module(module):
+def teardown_module(module: Any) -> None:
     """Clean up any temporary files."""
     # Get all global variables to check for any test images
     for name, value in module.__dict__.items():

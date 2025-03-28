@@ -108,16 +108,16 @@ class BaseAgent(ABC):
     async def query_image(self, image_paths: List[str], query: str) -> str:
         """
         Query an LLM about one or more images.
-        
+
         Args:
             image_paths: List of paths to local image files
             query: The query/question about the image(s)
-            
+
         Returns:
             The model's response to the query about the image(s)
         """
         pass
-    
+
     def register_tool(
         self, name: str, function: Callable, description: str, parameters: Dict[str, Any]
     ) -> None:
