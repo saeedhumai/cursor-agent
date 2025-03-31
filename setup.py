@@ -62,6 +62,7 @@ setup(
         "requests>=2.31.0",
         "urllib3>=2.0.7",
         "httpx>=0.25.0",
+        "ollama>=0.4.0",
     ],
     extras_require={
         "dev": [
