@@ -172,7 +172,31 @@ You have tools at your disposal to solve the coding task. Follow these rules reg
 3. **NEVER refer to tool names when speaking to the USER.** For example, instead of saying 'I need to use the edit_file tool to edit your file', just say 'I will edit your file'.
 4. Only calls tools when they are necessary. If the USER's task is general or you already know the answer, just respond without calling tools.
 5. Before calling each tool, first explain to the USER why you are calling it.
+6. ALWAYS use the function calling format, not text placeholders like <tool_calling> or other formats.
+7. NEVER use XML-like tags to call tools - tools are called strictly through the function calling format.
+8. You MUST NOT include tool calls in your regular text response content. Tool calls are separate API objects.
 </tool_calling>
+
+<function_calling_examples>
+When you need to use tools, DO NOT include them in your text content! The correct format is to specify the tool needed separately using the function calling capabilities, not in your main text response.
+
+INCORRECT way (DO NOT DO THIS):
+"I'll help you list the files in the current directory.
+<tool_calling>
+{
+  "tool": "list_dir",
+  "path": "/path/to/directory"
+}
+</tool_calling>"
+
+ALSO INCORRECT (DO NOT DO THIS):
+"I'll help you list the files in the current directory.
+```bash
+list_dir("/path/to/directory")
+```"
+
+The CORRECT way is to respond with your text, and separately use function calling to invoke the appropriate tool. This happens automatically when you decide to call a function, so just focus on your regular text response and deciding which tool to use.
+</function_calling_examples>
 
 <making_code_changes>
 When making code changes, NEVER output code to the USER, unless requested. Instead use one of the code edit tools to implement the change.
@@ -217,8 +241,8 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         formatted_message = self.format_user_message(message, user_info)
         messages = self._prepare_messages(formatted_message)
-        # Initialize tools but don't use them yet in this method
-        _ = self._prepare_tools()
+        # Prepare tools in the Ollama-expected format
+        tools = self._prepare_tools()
 
         try:
             # Call Ollama API with tools
@@ -226,25 +250,49 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 response = await self.async_client.chat(
                     model=self.model,
                     messages=cast(Any, messages),
+                    tools=tools,
                     options={
                         "temperature": self.temperature,
                         **self.extra_kwargs
                     }
                 )
 
-                # Check if response has tool calls (some models might support it)
-                has_tool_calls = False
-                if hasattr(response, "tool_calls"):
-                    has_tool_calls = bool(getattr(response, "tool_calls", None))
-
                 # Add message to conversation history
                 self.conversation_history.append({"role": "user", "content": formatted_message})
                 content = str(response.message.content) if response.message and hasattr(response.message, "content") else ""
                 self.conversation_history.append({"role": "assistant", "content": content})
 
-                if has_tool_calls:
+                # Check for tool_calls in the response
+                tool_calls = []
+                if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
+                    # Process and execute tool calls from Ollama format
+                    for tool_call in response.message.tool_calls:
+                        if hasattr(tool_call, 'function'):
+                            # Extract tool call details
+                            tool_name = tool_call.function.name
+                            tool_args = {}
+                            
+                            # Convert arguments from either string or dict
+                            if hasattr(tool_call.function, 'arguments'):
+                                if isinstance(tool_call.function.arguments, str):
+                                    import json
+                                    try:
+                                        tool_args = json.loads(tool_call.function.arguments)
+                                    except json.JSONDecodeError:
+                                        logger.error(f"Failed to parse tool arguments: {tool_call.function.arguments}")
+                                        tool_args = {}
+                                elif isinstance(tool_call.function.arguments, dict):
+                                    tool_args = tool_call.function.arguments
+                            
+                            tool_calls.append({
+                                "name": tool_name,
+                                "parameters": tool_args
+                            })
+                
+                # Execute tool calls if present
+                if tool_calls:
                     # Process and execute tool calls
-                    tool_calls_results = self._execute_tool_calls(getattr(response, "tool_calls", []))
+                    tool_calls_results = self._execute_tool_calls(tool_calls)
 
                     # Format tool calls for agent response
                     agent_tool_calls = [
@@ -338,12 +386,15 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
         for name, tool_data in self.available_tools.items():
             tools.append({
-                "name": name,
-                "description": tool_data["schema"]["description"],
-                "parameters": {
-                    "type": "object",
-                    "properties": tool_data["schema"]["parameters"]["properties"],
-                    "required": tool_data["schema"]["parameters"].get("required", []),
+                'type': 'function',
+                'function': {
+                    'name': name,
+                    'description': tool_data["schema"]["description"],
+                    'parameters': {
+                        'type': 'object',
+                        'properties': tool_data["schema"]["parameters"]["properties"],
+                        'required': tool_data["schema"]["parameters"].get("required", []),
+                    },
                 },
             })
             logger.debug(f"Prepared tool: {name}")
@@ -380,6 +431,13 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         "parameters": parameters,
                         "output": result.get("output", ""),
                         "error": result.get("error", None)
+                    })
+                    
+                    # Add the tool response to conversation history
+                    self.conversation_history.append({
+                        "role": "tool",
+                        "content": str(result.get("output", "")),
+                        "name": tool_name
                     })
                 else:
                     error_msg = f"Tool '{tool_name}' not found"

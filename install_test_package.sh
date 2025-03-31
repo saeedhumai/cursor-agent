@@ -1,0 +1,1 @@
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ cursor-agent-tools==0.1.22 --upgrade

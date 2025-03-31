@@ -122,3 +122,7 @@ def print_assistant(prefix: str = "") -> None:
 def print_prompt(prompt: str) -> None:
     """Print a prompt for user input."""
     print(f"{Colors.GREEN}{prompt}{Colors.RESET}", end="")
+
+def print_user_message(message: str) -> None:
+    """Print a user message."""
+    print(f"{Colors.BLUE}USER: {message}{Colors.RESET}")
