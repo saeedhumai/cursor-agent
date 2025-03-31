@@ -4,8 +4,9 @@
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![Anthropic](https://img.shields.io/badge/Anthropic-Claude-blueviolet)
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT4-green)
+![Ollama](https://img.shields.io/badge/Ollama-Local%20Models-orange)
 
-A Python-based AI agent that replicates Cursor's coding assistant capabilities, enabling function calling, code generation, and intelligent coding assistance with both Claude and OpenAI models.
+A Python-based AI agent that replicates Cursor's coding assistant capabilities, enabling function calling, code generation, and intelligent coding assistance with Claude, OpenAI, and locally hosted Ollama models.
 
 ## 🌟 Features
 
@@ -13,7 +14,7 @@ This AI Agent implementation provides a comprehensive set of capabilities:
 
 ### Core Abilities
 
-- **Model Flexibility**: Works with both Claude (Anthropic) and OpenAI models
+- **Model Flexibility**: Works with Claude (Anthropic), OpenAI models, and locally hosted Ollama models
 - **Code Generation**: Generate complete, functional code based on natural language descriptions
 - **Code Editing**: Make precise edits to existing code files
 - **Code Analysis**: Review and analyze code for bugs, improvements, and optimizations
@@ -21,6 +22,7 @@ This AI Agent implementation provides a comprehensive set of capabilities:
 - **Conversational Context**: Maintain a conversation history for coherent back-and-forth interactions
 - **Project-Aware Responses**: Consider project context when answering questions
 - **Permission System**: Secure permission handling for file operations and command execution
+- **Local Model Support**: Use open-source models hosted locally with Ollama
 
 ### Tool Functions
 
@@ -139,7 +141,58 @@ response = await claude_agent.chat("What's a good way to implement a cache in Py
 # Use OpenAI
 openai_agent = create_agent(model='gpt-4o')
 response = await openai_agent.chat("What's a good way to implement a cache in Python?")
+
+# Use Ollama (local open-source model)
+ollama_agent = create_agent(model='ollama-llama3')
+response = await ollama_agent.chat("What's a good way to implement a cache in Python?")
 ```
+
+### Using Local Ollama Models
+
+```python
+import asyncio
+from cursor_agent.agent import create_agent
+
+async def main():
+    # Create an agent with a local Ollama model
+    # Models must be pulled via Ollama CLI first: ollama pull MODEL_NAME
+    agent = create_agent(
+        model='ollama-llama3',  # prefix with "ollama-" followed by model name
+        host='http://localhost:11434',  # optional, this is the default
+        temperature=0.3  # optional temperature setting
+    )
+    
+    # Chat with the local model
+    response = await agent.chat("Write a Python script to download YouTube videos")
+    print(response)
+    
+    # Handle multimodal capabilities if model supports it
+    # image_path = "/path/to/your/image.png"
+    # image_response = await agent.query_image(
+    #     image_paths=[image_path],
+    #     query="What does this code screenshot show?"
+    # )
+    # print(image_response)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Supported Ollama Models
+
+The agent supports any model available in Ollama. Some popular options include:
+
+- `ollama-llama3` - Meta's Llama 3 model
+- `ollama-llama3.1` - Meta's Llama 3.1 model
+- `ollama-mistral` - Mistral AI's model
+- `ollama-gemma3` - Google's Gemma model
+- `ollama-deepseek-r1` - DeepSeek's reasoning model
+- `ollama-phi4` - Microsoft's Phi model
+- `ollama-qwen2.5` - Qwen's latest model
+
+For a complete list of available models, see [Ollama Library](https://ollama.com/library).
+
+Note that tool calling and multimodal support depend on the capabilities of the specific model.
 
 ### Creating a Custom Agent with Custom System Prompt
 
@@ -687,6 +740,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👤 Author
 
-Nifemi Alpine (Founder of [CIVAI TECHNOLOGIES](https://civai.co))
+Femi Amoo (Nifemi Alpine)
+
+Founder of [CIVAI TECHNOLOGIES](https://civai.co)
 
 [![Twitter](https://img.shields.io/twitter/follow/usecodenaija?style=social)](https://twitter.com/usecodenaija) 

@@ -41,8 +41,13 @@ def check_response_quality(response: Union[str, AgentResponse]) -> bool:
 # Helper for async tests
 def async_test(coro: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., T]:
     def wrapper(*args: Any, **kwargs: Any) -> T:
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro(*args, **kwargs))
+        # Create a new event loop instead of getting the current one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro(*args, **kwargs))
+        finally:
+            loop.close()
 
     return wrapper
 

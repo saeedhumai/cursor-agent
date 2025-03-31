@@ -88,3 +88,4 @@ test_permission
 tests/test_openai_file.txt
 tests/test_files_tmp/*
 tests/test_files_tmp
+*.code-workspace

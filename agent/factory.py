@@ -12,6 +12,7 @@ from agent.base import BaseAgent
 from agent.claude_agent import ClaudeAgent
 from agent.logger import get_logger
 from agent.openai_agent import OpenAIAgent
+from agent.ollama_agent import OllamaAgent
 from agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
 
 # Initialize logger
@@ -38,6 +39,18 @@ MODEL_MAPPING = {
         "gpt-4-turbo",
         "gpt-3.5-turbo",
         "gpt-3.5"
+    ],
+    "ollama": [
+        "llama3",
+        "llama3.1",
+        "llama3.2",
+        "llama3.3",
+        "deepseek-r1",
+        "gemma3",
+        "mistral",
+        "phi4",
+        "qwen2.5",
+        "qwen2.5-coder"
     ]
 }
 
@@ -64,7 +77,7 @@ def create_agent(
     Create an agent based on the specified model.
 
     Args:
-        model: The name of the model to use (e.g., "gpt-4o", "claude-3-opus")
+        model: The name of the model to use (e.g., "gpt-4o", "claude-3-opus", "ollama-llama3")
         api_key: The API key to use for the model provider
         temperature: The temperature to use for the model
         timeout: The timeout in seconds for model responses
@@ -87,8 +100,27 @@ def create_agent(
     else:
         logger.debug(f"Using custom permission options, yolo_mode={permissions.yolo_mode}")
 
+    # Handle Ollama models (prefix detection)
+    if model.startswith("ollama-"):
+        logger.debug("Detected Ollama model")
+        # Ollama doesn't require an API key but uses a local server
+        host = kwargs.get("host") or os.getenv("OLLAMA_HOST") or "http://localhost:11434"
+        logger.debug(f"Using Ollama host: {host}")
+
+        logger.info(f"Creating OllamaAgent with model {model}")
+        return OllamaAgent(
+            model=model,
+            temperature=temperature,
+            timeout=timeout,
+            permission_callback=permission_callback,
+            permission_options=permissions,
+            default_tool_timeout=default_tool_timeout,
+            host=host,
+            **kwargs
+        )
+
     # Handle OpenAI models
-    if any(name in model for name in ["gpt-", "openai"]):
+    elif any(name in model for name in ["gpt-", "openai"]):
         logger.debug("Detected OpenAI model")
         # Use environment variable if no API key is provided
         if api_key is None:
