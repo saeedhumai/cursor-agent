@@ -283,7 +283,7 @@ def file_search(
         return {"error": str(error)}
 
 
-async def web_search(
+def web_search(
     search_term: str,
     explanation: Optional[str] = None,
     force: bool = False,
@@ -324,9 +324,11 @@ async def web_search(
             up_to_date_prompt = f"Based on the main goal: {objective}\nDoes the following research objective require the most recent information?\n\n'{search_term}' \n\nAnswer in a single word, 'yes' or 'no'."
 
             # Use the provided agent rather than creating a new one
-            requires_up_to_date_response = await agent.chat(up_to_date_prompt)
-            requires_up_to_date = "yes" in requires_up_to_date_response.lower()
-            logger.debug(f"Up-to-date check: {requires_up_to_date}")
+            # Convert to synchronous by assuming most queries need up-to-date info
+            # requires_up_to_date_response = await agent.chat(up_to_date_prompt)
+            # requires_up_to_date = "yes" in requires_up_to_date_response.lower()
+            requires_up_to_date = True
+            logger.debug(f"Assuming up-to-date information is needed: {requires_up_to_date}")
 
         if not requires_up_to_date and not force:
             logger.info("Search does not require up-to-date information, skipping web search")
@@ -337,7 +339,8 @@ async def web_search(
 
         # Perform Google search
         logger.info("Performing internet search using Google Custom Search API...")
-        search_results = await google_search(search_term, google_api_key, google_search_engine_id)
+        # Call google_search synchronously
+        search_results = google_search_sync(search_term, google_api_key, google_search_engine_id)
 
         if not search_results:
             logger.warning("No search results found")
@@ -347,7 +350,7 @@ async def web_search(
             }
 
         # Scrape content from search results
-        content_summaries = await scrape_content(search_results)
+        content_summaries = scrape_content_sync(search_results)
 
         # Format results
         results = []
@@ -372,9 +375,9 @@ async def web_search(
         return {"error": str(error), "results": []}
 
 
-async def google_search(query: str, api_key: str, search_engine_id: str) -> Dict[str, Dict[str, Any]]:
+def google_search_sync(query: str, api_key: str, search_engine_id: str) -> Dict[str, Dict[str, Any]]:
     """
-    Perform a search using Google Custom Search API.
+    Perform a search using Google Custom Search API synchronously.
 
     Args:
         query: The search query
@@ -423,9 +426,9 @@ async def google_search(query: str, api_key: str, search_engine_id: str) -> Dict
         return {}
 
 
-async def scrape_content(search_results: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+def scrape_content_sync(search_results: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
     """
-    Scrape and summarize content from search result URLs.
+    Scrape and summarize content from search result URLs synchronously.
 
     Args:
         search_results: Dictionary mapping URLs to search result data

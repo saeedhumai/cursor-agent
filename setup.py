@@ -32,7 +32,7 @@ long_description = re.sub(file_pattern, file_replacement, long_description)
 
 setup(
     name="cursor-agent-tools",
-    version="0.1.25",
+    version="0.1.26",
     author="Nifemi Alpine",
     author_email="hello@civai.co",
     description="A Python-based AI agent that replicates Cursor's coding assistant capabilities",
@@ -63,6 +63,7 @@ setup(
         "urllib3>=2.0.7",
         "httpx>=0.25.0",
         "ollama>=0.4.0",
+        "beautifulsoup4>=4.12.0",
     ],
     extras_require={
         "dev": [
