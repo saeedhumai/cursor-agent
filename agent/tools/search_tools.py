@@ -321,12 +321,10 @@ def web_search(
         requires_up_to_date = force
 
         if objective and not force and agent:
-            up_to_date_prompt = f"Based on the main goal: {objective}\nDoes the following research objective require the most recent information?\n\n'{search_term}' \n\nAnswer in a single word, 'yes' or 'no'."
+            # Since we're not using the agent.chat anymore, we don't need this prompt
+            # up_to_date_prompt = f"Based on the main goal: {objective}\nDoes the following research objective require the most recent information?\n\n'{search_term}' \n\nAnswer in a single word, 'yes' or 'no'."
 
-            # Use the provided agent rather than creating a new one
-            # Convert to synchronous by assuming most queries need up-to-date info
-            # requires_up_to_date_response = await agent.chat(up_to_date_prompt)
-            # requires_up_to_date = "yes" in requires_up_to_date_response.lower()
+            # Just assume most queries need up-to-date info for simplicity
             requires_up_to_date = True
             logger.debug(f"Assuming up-to-date information is needed: {requires_up_to_date}")
 
