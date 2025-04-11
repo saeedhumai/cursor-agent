@@ -20,8 +20,9 @@ parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from agent.claude_agent import ClaudeAgent
-from agent.openai_agent import OpenAIAgent
+from cursor_agent_tools.claude_agent import ClaudeAgent
+from cursor_agent_tools.openai_agent import OpenAIAgent
+from cursor_agent_tools.agent import create_agent
 from examples.utils import (
     Colors,
     clear_screen,
