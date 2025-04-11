@@ -56,8 +56,8 @@ def register_default_tools(agent: Any) -> None:
 
     agent.register_tool(
         "edit_file",
-        lambda target_file, instructions, code_edit: file_tools.edit_file(
-            target_file, instructions, code_edit, agent
+        lambda target_file, instructions, code_edit=None, code_replace=None: file_tools.edit_file(
+            target_file, instructions, code_edit, code_replace, agent
         ),
         "Edit a file in the codebase.",
         {
@@ -68,9 +68,26 @@ def register_default_tools(agent: Any) -> None:
                     "type": "string",
                     "description": "A single sentence instruction describing the edit",
                 },
-                "code_edit": {"type": "string", "description": "The precise lines of code to edit"},
+                "code_edit": {
+                    "type": ["object", "string", "null"],
+                    "description": "Line-based edit with line ranges as keys (e.g., \"1-5\") and values as the new content.",
+                    "additionalProperties": {
+                        "type": "string",
+                        "description": "New content for the specified line range"
+                    },
+                    "examples": [
+                        {
+                            "1-5": "def new_function():\n    return True",
+                            "10-15": "# This is a multi-line\n# comment block"
+                        }
+                    ]
+                },
+                "code_replace": {
+                    "type": ["string", "null"],
+                    "description": "Complete replacement content for the file (use this instead of code_edit for full file replacement)"
+                }
             },
-            "required": ["target_file", "instructions", "code_edit"],
+            "required": ["target_file", "instructions"],
         },
     )
     logger.debug("Registered tool: edit_file")
@@ -156,8 +173,8 @@ def register_default_tools(agent: Any) -> None:
     # Search tools
     agent.register_tool(
         "codebase_search",
-        lambda query, target_directories=None: search_tools.codebase_search(
-            query, target_directories, agent
+        lambda query, target_directories=None, explanation=None: search_tools.codebase_search(
+            query, target_directories, explanation, agent
         ),
         "Search the codebase using semantic search.",
         {
@@ -172,6 +189,10 @@ def register_default_tools(agent: Any) -> None:
                     "items": {"type": "string"},
                     "description": "Directories to search over",
                 },
+                "explanation": {
+                    "type": "string",
+                    "description": "One sentence explanation as to why this tool is being used",
+                },
             },
             "required": ["query"],
         },
@@ -180,14 +201,18 @@ def register_default_tools(agent: Any) -> None:
 
     agent.register_tool(
         "grep_search",
-        lambda query, case_sensitive=False, include_pattern=None, exclude_pattern=None: search_tools.grep_search(
-            query, case_sensitive, include_pattern, exclude_pattern, agent
+        lambda query, explanation=None, case_sensitive=False, include_pattern=None, exclude_pattern=None: search_tools.grep_search(
+            query, explanation, case_sensitive, include_pattern, exclude_pattern, agent
         ),
         "Fast text-based search using regex patterns.",
         {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "The regex pattern to search for"},
+                "explanation": {
+                    "type": "string",
+                    "description": "One sentence explanation as to why this tool is being used",
+                },
                 "case_sensitive": {
                     "type": "boolean",
                     "description": "Whether the search is case sensitive",
@@ -208,12 +233,16 @@ def register_default_tools(agent: Any) -> None:
 
     agent.register_tool(
         "file_search",
-        lambda query: search_tools.file_search(query, agent),
+        lambda query, explanation=None: search_tools.file_search(query, explanation, agent),
         "Fast file search based on fuzzy matching against file path.",
         {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Fuzzy filename to search for"},
+                "explanation": {
+                    "type": "string",
+                    "description": "One sentence explanation as to why this tool is being used",
+                },
             },
             "required": ["query"],
         },
@@ -223,7 +252,9 @@ def register_default_tools(agent: Any) -> None:
     # Web search
     agent.register_tool(
         "web_search",
-        lambda search_term: search_tools.web_search(search_term, agent),
+        lambda search_term, explanation=None, force=False, objective=None: search_tools.web_search(
+            search_term, explanation, force, objective, agent
+        ),
         "Search the web for information.",
         {
             "type": "object",
@@ -231,6 +262,18 @@ def register_default_tools(agent: Any) -> None:
                 "search_term": {
                     "type": "string",
                     "description": "The search term to look up on the web",
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": "One sentence explanation as to why this search is being performed",
+                },
+                "force": {
+                    "type": "boolean",
+                    "description": "Force internet access even if not required",
+                },
+                "objective": {
+                    "type": "string",
+                    "description": "User objective to determine if up-to-date data is needed",
                 },
             },
             "required": ["search_term"],

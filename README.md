@@ -31,6 +31,8 @@ The agent supports a comprehensive set of tools:
 - **File Operations**:
   - **read_file**: Read file contents with flexible line range control
   - **edit_file**: Make precise edits to files with clear instructions
+    - Supports complete file replacement
+    - Supports line-based editing with JSON dictionaries (e.g., `{"1-5": "new content", "10-12": "more content"}`)
   - **delete_file**: Remove files from the filesystem
   - **create_file**: Create new files with specified content
   - **list_dir**: List directory contents to understand project structure
@@ -49,7 +51,7 @@ The agent supports a comprehensive set of tools:
 
 All tools are implemented with actual functionality and can be extended with custom tools as needed.
 
-## 📋 Table of Contents
+## 📚 Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -705,6 +707,65 @@ agent.register_tool(
         "required": ["file_path", "operations"]
     }
 )
+```
+
+### File Operations Examples
+
+#### Line-Based File Editing
+
+The agent supports precise editing of files using line numbers:
+
+```python
+import json
+from cursor_agent.agent import create_agent
+
+async def main():
+    agent = create_agent(model='claude-3-5-sonnet-latest')
+    
+    # Define line-based edits as a dictionary with line ranges as keys
+    line_edits = {
+        "5-8": "def calculate_total(items):\n    \"\"\"Calculate the total price of all items.\"\"\"\n    return sum(item.price for item in items)\n",
+        "12-12": "    # Log the transaction\n    logging.info(f\"Processed order: {order_id}\")\n"
+    }
+    
+    # Convert to JSON string for the edit_file function
+    code_edit_json = json.dumps(line_edits)
+    
+    # Apply edits to specific line ranges
+    await agent.edit_file(
+        target_file="/path/to/your/file.py",
+        instructions="Update calculate_total function and add logging",
+        code_edit=code_edit_json
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+This approach has several advantages:
+- Precisely target specific line ranges for editing
+- Make multiple edits in a single operation
+- Clear and structured format for programmatic editing
+- Easier to automate and script file modifications
+
+For more examples, check out [line_based_edit_example.py](examples/line_based_edit_example.py).
+
+### Providing Project Context
+
+```python
+from cursor_agent.agent import create_agent
+
+agent = create_agent(model='claude-3-5-sonnet-latest')
+
+user_info = {
+    "open_files": ["src/main.py", "src/utils.py"],
+    "cursor_position": {"file": "src/main.py", "line": 42},
+    "recent_files": ["src/config.py", "tests/test_main.py"],
+    "os": "darwin",
+    "workspace_path": "/Users/username/projects/myproject"
+}
+
+response = await agent.chat("Fix the bug in the main function", user_info=user_info)
 ```
 
 ## ⚠️ Limitations and Considerations

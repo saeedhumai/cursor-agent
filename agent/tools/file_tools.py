@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Union
+import json
 
 from ..base import BaseAgent
 from ..logger import get_logger
@@ -37,7 +38,7 @@ def read_file(
             file_path = target_file
 
         logger.debug(f"Reading file: {file_path}")
-        
+
         if not os.path.exists(file_path):
             logger.warning(f"File does not exist: {file_path}")
             return {"error": f"File {file_path} does not exist"}
@@ -76,7 +77,7 @@ def read_file(
         end_line = offset + len(content_lines) - 1
         if end_line < offset:
             end_line = offset
-            
+
         # If we read to the end of the file due to a small file size,
         # set end_line to the total number of lines
         if len(content_lines) > 0 and end_idx == len(lines):
@@ -99,16 +100,19 @@ def read_file(
 def edit_file(
     target_file: str,
     instructions: str,
-    code_edit: str,
+    code_edit: Optional[Union[Dict[str, str], str]] = None,
+    code_replace: Optional[str] = None,
     agent: Optional[BaseAgent] = None,  # Optional agent reference for permissions
 ) -> Dict[str, Any]:
     """
-    Edit a file according to the provided instructions and code edit.
+    Edit a file according to the provided instructions and code changes.
 
     Args:
         target_file: Path to the file to edit
         instructions: Instructions describing the edit
-        code_edit: The actual edit to apply
+        code_edit: Line-based edit as a JSON dictionary or string with line ranges as keys:
+                  {"1-5": "new content", "10-12": "more content"}
+        code_replace: Complete replacement content for the file (if code_edit not provided)
         agent: Reference to the agent instance for permission checks
 
     Returns:
@@ -117,14 +121,37 @@ def edit_file(
     try:
         logger.info(f"Editing file: {target_file}")
         logger.debug(f"Edit instructions: {instructions}")
-        
+
+        # Validate that we have either code_edit or code_replace, but not both
+        if code_edit is None and code_replace is None:
+            logger.error("Either code_edit or code_replace must be provided")
+            return {"status": "error", "message": "Either code_edit or code_replace must be provided"}
+
+        if code_edit is not None and code_replace is not None:
+            logger.warning("Both code_edit and code_replace provided, using code_edit")
+
+        # Create preview for logging and permissions
+        if code_edit is not None:
+            if isinstance(code_edit, dict):
+                edit_preview = str(code_edit)[:300] + ("..." if len(str(code_edit)) > 300 else "")
+            else:
+                edit_preview = str(code_edit)[:300] + ("..." if len(str(code_edit)) > 300 else "")
+            logger.debug(f"Code edit preview: {edit_preview}")
+        elif code_replace is not None:
+            replace_preview = code_replace[:300] + ("..." if len(code_replace) > 300 else "")
+            logger.debug(f"Code replace preview: {replace_preview}")
+
         # Request permission if agent is provided
         if agent:
             operation_details = {
                 "target_file": target_file,
                 "instructions": instructions,
-                "code_edit_preview": code_edit[:100] + ("..." if len(code_edit) > 100 else ""),
             }
+
+            if code_edit is not None:
+                operation_details["edit_preview"] = edit_preview if 'edit_preview' in locals() else str(code_edit)[:300]
+            elif code_replace is not None:
+                operation_details["replace_preview"] = replace_preview if 'replace_preview' in locals() else code_replace[:300]
 
             if not agent.request_permission("edit_file", operation_details):
                 logger.warning(f"Permission denied to edit file: {target_file}")
@@ -139,8 +166,39 @@ def edit_file(
         with open(target_file, "r") as f:
             original_content = f.read()
 
-        # Parse and apply the edit
-        edited_content = apply_edit(original_content, code_edit)
+        # Apply the edit based on which parameter was provided
+        if code_edit is not None:
+            # Handle line-based edits
+            if isinstance(code_edit, dict):
+                # Convert all keys to strings
+                line_edits = {str(k): v for k, v in code_edit.items()}
+                edited_content = apply_line_based_edit(original_content, line_edits)
+            elif isinstance(code_edit, str):
+                # Try to parse as JSON if it looks like a JSON string
+                code_edit = code_edit.strip()
+                if code_edit.startswith('{') and code_edit.endswith('}'):
+                    try:
+                        line_edits = json.loads(code_edit)
+                        if isinstance(line_edits, dict):
+                            # Convert all keys to strings
+                            line_edits_str = {str(k): v for k, v in line_edits.items()}
+                            edited_content = apply_line_based_edit(original_content, line_edits_str)
+                        else:
+                            logger.error(f"Invalid JSON format for code_edit. Expected dict, got {type(line_edits)}")
+                            return {"status": "error", "message": "Invalid JSON format for code_edit"}
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse code_edit as JSON: {str(e)}")
+                        return {"status": "error", "message": f"Failed to parse code_edit as JSON: {str(e)}"}
+                else:
+                    # If it doesn't look like JSON, treat it as a complete replacement
+                    logger.warning("code_edit doesn't appear to be JSON, treating as complete replacement")
+                    edited_content = code_edit
+            else:
+                logger.error(f"Invalid type for code_edit: {type(code_edit)}")
+                return {"status": "error", "message": f"Invalid type for code_edit: {type(code_edit)}"}
+        else:
+            # Use code_replace for complete file replacement
+            edited_content = code_replace if code_replace is not None else ""
 
         # Write the edited content back to the file
         with open(target_file, "w") as f:
@@ -151,6 +209,8 @@ def edit_file(
 
     except Exception as e:
         logger.error(f"Error editing file {target_file}: {str(e)}")
+        import traceback
+        logger.debug(f"Traceback: {traceback.format_exc()}")
         return {"status": "error", "message": str(e)}
 
 
@@ -170,7 +230,7 @@ def delete_file(
     """
     try:
         logger.info(f"Deleting file: {target_file}")
-        
+
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -213,7 +273,7 @@ def create_file(
     """
     try:
         logger.info(f"Creating file: {file_path}")
-        
+
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -263,7 +323,7 @@ def list_directory(
     # No permission required for listing directories
     try:
         logger.debug(f"Listing directory: {relative_workspace_path}")
-        
+
         if not os.path.exists(relative_workspace_path):
             logger.warning(f"Directory does not exist: {relative_workspace_path}")
             return {"error": f"Directory {relative_workspace_path} does not exist"}
@@ -289,60 +349,148 @@ def list_directory(
         return {"error": str(e)}
 
 
-def apply_edit(original_content: str, code_edit: str) -> str:
+def apply_edit(original_content: str, code_edit: Any) -> str:
     """
     Parse and apply an edit to the original content.
 
+    DEPRECATED: This function is maintained for backward compatibility only.
+    New code should use edit_file with code_edit or code_replace parameters directly.
+
     Args:
         original_content: The original file content
-        code_edit: The edit to apply, which may contain "... existing code ..." markers
+        code_edit: The edit to apply, which should be:
+                  - A dictionary with line ranges as keys and content as values
+                    e.g., {"1-20": "new content", "30-35": "more content"}
+                  - A JSON string representing such a dictionary
+                  - Or complete replacement content as a string
 
     Returns:
         The content after applying the edit
     """
-    # If no markers, simply return the code_edit
-    if "// ... existing code ..." not in code_edit and "# ... existing code ..." not in code_edit:
-        logger.debug("No existing code markers found, replacing entire content")
-        return code_edit
+    logger.debug(f"apply_edit received code_edit of type: {type(code_edit)}")
+    logger.warning("apply_edit is deprecated, prefer using edit_file with code_edit/code_replace")
 
+    # Handle dictionary input
+    if isinstance(code_edit, dict):
+        # Ensure all keys are strings
+        line_edits = {}
+        for k, v in code_edit.items():
+            if isinstance(k, slice):
+                # Convert slice object to string format
+                start = k.start or 1
+                stop = k.stop or start
+                k_str = f"{start}-{stop}"
+                line_edits[k_str] = v
+            else:
+                # Just convert to string if not already
+                line_edits[str(k)] = v
+
+        logger.debug(f"Converted dictionary: {line_edits}")
+        return apply_line_based_edit(original_content, line_edits)
+
+    # Handle string input - try to parse as JSON
+    if isinstance(code_edit, str):
+        # Check if it looks like a JSON object
+        code_edit = code_edit.strip()
+        if code_edit.startswith('{') and code_edit.endswith('}'):
+            try:
+                # Attempt to parse as JSON
+                line_edits = json.loads(code_edit)
+
+                # Verify it's a dictionary and process it
+                if isinstance(line_edits, dict):
+                    # Convert all keys to strings
+                    line_edits_str = {str(k): v for k, v in line_edits.items()}
+                    logger.debug(f"Detected line-based edit with {len(line_edits_str)} ranges")
+                    return apply_line_based_edit(original_content, line_edits_str)
+                else:
+                    logger.debug(f"JSON parsed but result is not a dictionary: {type(line_edits)}")
+            except json.JSONDecodeError as e:
+                logger.debug(f"Failed to parse as JSON: {str(e)}")
+                logger.debug(f"Content that failed to parse: {code_edit}")
+
+    # If not a valid line-based edit, replace the entire content
+    logger.debug("No valid line-based edit detected, replacing entire content")
+    return str(code_edit)
+
+
+def apply_line_based_edit(original_content: str, line_edits: Dict[str, str]) -> str:
+    """
+    Apply edits based on line ranges.
+
+    Args:
+        original_content: The original file content
+        line_edits: Dictionary with keys as line ranges (e.g., "1-5", "7-7")
+                   and values as the new content for those ranges
+
+    Returns:
+        The content after applying the line-based edits
+    """
+    logger.debug(f"Applying line-based edit: {line_edits}")
     original_lines = original_content.splitlines()
-    edit_lines = code_edit.splitlines()
+    result_lines = original_lines.copy()
 
-    # Parse the edit to identify segments
-    segments: List[Tuple[str, Optional[List[str]]]] = []
-    current_segment: List[str] = []
-    for line in edit_lines:
-        if "// ... existing code ..." in line or "# ... existing code ..." in line:
-            if current_segment:
-                segments.append(("edit", current_segment))
-                current_segment = []
-            segments.append(("keep", None))
-        else:
-            current_segment.append(line)
+    try:
+        # Sort the line ranges to process from bottom to top
+        # This prevents changes to line numbers affecting subsequent edits
+        line_ranges = sorted(
+            line_edits.keys(),
+            key=lambda x: [int(n) if n.isdigit() else 0 for n in x.replace('-', ',').split(',')],
+            reverse=True
+        )
 
-    if current_segment:
-        segments.append(("edit", current_segment))
+        logger.debug(f"Sorted line ranges: {line_ranges}")
 
-    # Apply the segments to the original content
-    result_lines = []
-    original_index = 0
+        for line_range in line_ranges:
+            try:
+                # Parse the line range
+                if "-" in line_range:
+                    parts = line_range.split("-")
+                    start = int(parts[0])
+                    end = int(parts[1])
+                else:
+                    start = end = int(line_range)
 
-    for segment_type, segment_lines in segments:
-        if segment_type == "keep":
-            # For "keep" segments, include the original lines
-            # This is a simplistic approach; in a real implementation,
-            # you might want to match the context to determine which lines to keep
-            if original_index < len(original_lines):
-                result_lines.append(original_lines[original_index])
-                original_index += 1
-        else:  # "edit"
-            # For "edit" segments, include the new lines
-            if segment_lines:  # Check if segment_lines is not None
-                result_lines.extend(segment_lines)
+                # Convert to 0-indexed
+                start_idx = start - 1
+                end_idx = end - 1
 
-    # Add any remaining original lines
-    if original_index < len(original_lines):
-        result_lines.extend(original_lines[original_index:])
+                # Validate indices
+                if start_idx < 0:
+                    logger.warning(f"Invalid start index {start_idx+1}, adjusting to 1")
+                    start_idx = 0
 
-    logger.debug(f"Applied edit with {len(segments)} segments")
-    return "\n".join(result_lines)
+                if end_idx >= len(original_lines):
+                    logger.warning(f"Invalid end index {end_idx+1}, adjusting to {len(original_lines)}")
+                    end_idx = len(original_lines) - 1
+
+                if start_idx > end_idx:
+                    logger.warning(f"Invalid line range: {line_range} (start > end)")
+                    continue
+
+                # Get the new content for this range
+                new_content = line_edits[line_range]
+                new_lines = new_content.splitlines()
+
+                logger.debug(f"Replacing lines {start_idx+1}-{end_idx+1} with {len(new_lines)} new lines")
+                logger.debug(f"Original lines: {original_lines[start_idx:end_idx+1]}")
+                logger.debug(f"New lines: {new_lines}")
+
+                # Replace the specified lines with the new content
+                result_lines[start_idx:end_idx + 1] = new_lines
+
+                logger.debug(f"Applied edit to lines {line_range}")
+
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error applying edit to line range {line_range}: {str(e)}")
+                import traceback
+                logger.debug(f"Traceback: {traceback.format_exc()}")
+
+        return "\n".join(result_lines)
+
+    except Exception as e:
+        logger.error(f"Error in apply_line_based_edit: {str(e)}")
+        import traceback
+        logger.debug(f"Traceback: {traceback.format_exc()}")
+        # Return original content on error to avoid data loss
+        return original_content

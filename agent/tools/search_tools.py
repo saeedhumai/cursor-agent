@@ -2,7 +2,9 @@ import json
 import os
 import re
 import subprocess
+import requests
 from typing import Any, Dict, List, Optional
+from bs4 import BeautifulSoup
 
 from ..logger import get_logger
 
@@ -11,7 +13,7 @@ logger = get_logger(__name__)
 
 
 def codebase_search(
-    query: str, target_directories: Optional[List[str]] = None, explanation: Optional[str] = None
+    query: str, target_directories: Optional[List[str]] = None, explanation: Optional[str] = None, agent: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Find snippets of code from the codebase most relevant to the search query.
@@ -21,13 +23,14 @@ def codebase_search(
         query: The search query to find relevant code
         target_directories: Optional list of directories to search in
         explanation: Optional explanation of why this search is being performed
+        agent: Reference to the agent instance (unused in this function but kept for consistency)
 
     Returns:
         Dict containing the search results
     """
     try:
         logger.info(f"Performing codebase search for: {query}")
-        
+
         if target_directories is None:
             # Default to current directory if none specified
             target_directories = [os.getcwd()]
@@ -110,6 +113,7 @@ def grep_search(
     case_sensitive: bool = False,
     include_pattern: Optional[str] = None,
     exclude_pattern: Optional[str] = None,
+    agent: Optional[Any] = None  # Optional agent reference
 ) -> Dict[str, Any]:
     """
     Fast text-based regex search that finds exact pattern matches within files or directories.
@@ -120,6 +124,7 @@ def grep_search(
         case_sensitive: Whether the search should be case sensitive
         include_pattern: Optional glob pattern for files to include
         exclude_pattern: Optional glob pattern for files to exclude
+        agent: Reference to the agent instance (unused in this function but kept for consistency)
 
     Returns:
         Dict containing the search results
@@ -127,7 +132,7 @@ def grep_search(
     try:
         logger.info(f"Performing grep search for pattern: {query}")
         logger.debug(f"Search parameters - case_sensitive: {case_sensitive}, include: {include_pattern}, exclude: {exclude_pattern}")
-        
+
         # Check if ripgrep is installed
         have_ripgrep = False
         try:
@@ -225,20 +230,25 @@ def grep_search(
         return {"error": str(error)}
 
 
-def file_search(query: str, explanation: Optional[str] = None) -> Dict[str, Any]:
+def file_search(
+    query: str,
+    explanation: Optional[str] = None,
+    agent: Optional[Any] = None  # Optional agent reference
+) -> Dict[str, Any]:
     """
     Fast file search based on fuzzy matching against file path.
 
     Args:
         query: Fuzzy filename to search for
         explanation: Optional explanation of why this search is being performed
+        agent: Reference to the agent instance (unused in this function but kept for consistency)
 
     Returns:
         Dict containing the search results
     """
     try:
         logger.info(f"Performing file search for: {query}")
-        
+
         results = []
 
         for root, _, files in os.walk(os.getcwd()):
@@ -273,36 +283,196 @@ def file_search(query: str, explanation: Optional[str] = None) -> Dict[str, Any]
         return {"error": str(error)}
 
 
-def web_search(search_term: str, explanation: Optional[str] = None) -> Dict[str, Any]:
+async def web_search(
+    search_term: str,
+    explanation: Optional[str] = None,
+    force: bool = False,
+    objective: Optional[str] = None,
+    agent: Optional[Any] = None  # Optional agent reference
+) -> Dict[str, Any]:
     """
-    Search the web for information about any topic.
+    Search the web for up-to-date information about any topic using Google Custom Search API.
 
     Args:
         search_term: The search term to look up on the web
         explanation: Optional explanation of why this search is being performed
+        force: Force internet access even if not required
+        objective: Optional user objective to determine if up-to-date data is needed
+        agent: Reference to the agent instance for LLM queries
 
     Returns:
-        Dict containing the search results
+        Dict containing the search results with content from top websites
     """
     try:
         logger.info(f"Performing web search for: {search_term}")
-        
-        # This is a placeholder for a real web search implementation
-        # In a real implementation, you'd use a search API like Google Custom Search or DuckDuckGo
 
-        logger.debug("Using placeholder implementation for web search")
-        # For now, we'll return a message indicating this is a placeholder
+        # Get API keys from environment
+        google_api_key = os.environ.get("GOOGLE_API_KEY")
+        google_search_engine_id = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
+
+        if not google_api_key or not google_search_engine_id:
+            logger.error("Missing Google API key or Search Engine ID in environment variables")
+            return {
+                "error": "Missing API keys. Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.",
+                "results": []
+            }
+
+        # Check if this search requires up-to-date information
+        requires_up_to_date = force
+
+        if objective and not force and agent:
+            up_to_date_prompt = f"Based on the main goal: {objective}\nDoes the following research objective require the most recent information?\n\n'{search_term}' \n\nAnswer in a single word, 'yes' or 'no'."
+
+            # Use the provided agent rather than creating a new one
+            requires_up_to_date_response = await agent.chat(up_to_date_prompt)
+            requires_up_to_date = "yes" in requires_up_to_date_response.lower()
+            logger.debug(f"Up-to-date check: {requires_up_to_date}")
+
+        if not requires_up_to_date and not force:
+            logger.info("Search does not require up-to-date information, skipping web search")
+            return {
+                "results": [],
+                "message": "This query doesn't require up-to-date information. Set force=True to force a web search."
+            }
+
+        # Perform Google search
+        logger.info("Performing internet search using Google Custom Search API...")
+        search_results = await google_search(search_term, google_api_key, google_search_engine_id)
+
+        if not search_results:
+            logger.warning("No search results found")
+            return {
+                "results": [],
+                "message": "No search results found"
+            }
+
+        # Scrape content from search results
+        content_summaries = await scrape_content(search_results)
+
+        # Format results
+        results = []
+        for url, summary in content_summaries.items():
+            if url in search_results:
+                title = search_results[url].get('title', 'Unknown Title')
+                results.append({
+                    "title": title,
+                    "url": url,
+                    "content": summary
+                })
+
+        logger.info(f"Web search completed. Found {len(results)} relevant results")
         return {
-            "results": [
-                {
-                    "title": "Web search placeholder",
-                    "snippet": f"This is a placeholder for web search results for: {search_term}",
-                    "url": "https://example.com",
-                }
-            ],
-            "message": "Note: This is a placeholder. In a real implementation, you would use a search API or web scraping to get actual search results.",
+            "query": search_term,
+            "results": results,
+            "total_results": len(results)
         }
 
     except Exception as error:
         logger.error(f"Error in web search: {str(error)}")
-        return {"error": str(error)}
+        return {"error": str(error), "results": []}
+
+
+async def google_search(query: str, api_key: str, search_engine_id: str) -> Dict[str, Dict[str, Any]]:
+    """
+    Perform a search using Google Custom Search API.
+
+    Args:
+        query: The search query
+        api_key: Google API key
+        search_engine_id: Google Search Engine ID
+
+    Returns:
+        Dictionary mapping URLs to search result data
+    """
+    try:
+        logger.info(f"Performing Google Custom Search for: {query}")
+
+        url = "https://www.googleapis.com/customsearch/v1"
+        params: Dict[str, str] = {
+            'key': api_key,
+            'cx': search_engine_id,
+            'q': query,
+            'num': '5'  # Number of results as string
+        }
+
+        response = requests.get(url, params=params)
+
+        if response.status_code != 200:
+            logger.error(f"Google Search API error: {response.status_code}")
+            logger.error(f"Response: {response.text}")
+            return {}
+
+        data = response.json()
+
+        # Process search results
+        results = {}
+        if 'items' in data:
+            for item in data['items']:
+                url = item.get('link')
+                if url:
+                    results[url] = {
+                        'title': item.get('title', ''),
+                        'snippet': item.get('snippet', '')
+                    }
+
+        logger.info(f"Found {len(results)} search results")
+        return results
+
+    except Exception as e:
+        logger.error(f"Error in Google search: {str(e)}")
+        return {}
+
+
+async def scrape_content(search_results: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+    """
+    Scrape and summarize content from search result URLs.
+
+    Args:
+        search_results: Dictionary mapping URLs to search result data
+
+    Returns:
+        Dictionary mapping URLs to content summaries
+    """
+    content_summaries = {}
+
+    for url in search_results:
+        try:
+            logger.info(f"Scraping content from: {url}")
+
+            # Request the page with a timeout
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                logger.warning(f"Failed to fetch {url}: {response.status_code}")
+                continue
+
+            # Parse the HTML content
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.extract()
+
+            # Get the text
+            text = soup.get_text()
+
+            # Break into lines and remove leading and trailing space
+            lines = (line.strip() for line in text.splitlines())
+            # Break multi-headlines into a line each
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            # Drop blank lines
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+
+            # Limit text to a reasonable size (first 5000 chars)
+            text = text[:5000]
+
+            # Store the result
+            content_summaries[url] = text
+
+        except Exception as e:
+            logger.error(f"Error scraping {url}: {str(e)}")
+
+    return content_summaries

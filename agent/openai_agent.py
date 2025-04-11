@@ -569,10 +569,15 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 logger.error(error_msg)
                 return error_msg
 
+        if not self.system_prompt:
+            image_system_prompt = "You are Claude, an AI assistant that can analyze and describe images. Provide detailed and accurate information about the images based on the user's query."
+        else:
+            image_system_prompt = self.system_prompt
+
         try:
             # Prepare the message with images and query
             messages = [
-                {"role": "system", "content": "You are an AI assistant that can analyze images."},
+                {"role": "system", "content": image_system_prompt},
                 {
                     "role": "user",
                     "content": [

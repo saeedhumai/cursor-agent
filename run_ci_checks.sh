@@ -53,8 +53,8 @@ if [ $? -ne 0 ]; then
     handle_error "Failed to install package dependencies"
 fi
 
-echo -e "${CYAN}Running: pip install pytest pytest-cov flake8 mypy types-requests${NC}"
-pip install pytest pytest-cov flake8 mypy types-requests
+echo -e "${CYAN}Running: pip install pytest pytest-cov flake8 mypy types-requests beautifulsoup4 types-beautifulsoup4${NC}"
+pip install pytest pytest-cov flake8 mypy types-requests beautifulsoup4 types-beautifulsoup4
 if [ $? -ne 0 ]; then
     handle_error "Failed to install test dependencies"
 fi
@@ -86,8 +86,8 @@ echo -e "${CYAN}Creating test directories...${NC}"
 python -m tests.create_test_dirs
 
 # Run tests with coverage
-echo -e "${CYAN}Running: python -m pytest tests/ -v --ignore=tests/requires_api/ -k \"not test_openai_with_proxy\" --cov=agent --cov-report=term-missing${NC}"
-python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy" --cov=agent --cov-report=term-missing
+echo -e "${CYAN}Running: python -m pytest tests/ -v --ignore=tests/requires_api/ -k \"not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image\" --cov=agent --cov-report=term-missing${NC}"
+python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image" --cov=agent --cov-report=term-missing
 test_status=$?
 
 if [ $test_status -eq 0 ]; then

@@ -60,7 +60,7 @@ async def demo_normal_mode() -> None:
         result = agent.available_tools["edit_file"]["function"](
             target_file=f"{test_dir}/test.txt",
             instructions="Add a second line",
-            code_edit="This is a test file.\nThis is a second line."
+            code_replace="This is a test file.\nThis is a second line."
         )
         print(f"Result: {result}")
     except Exception as e:
