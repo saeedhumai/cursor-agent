@@ -12,8 +12,8 @@ script_dir = Path(__file__).parent
 parent_dir = script_dir.parent
 sys.path.append(str(parent_dir))
 
-from agent.factory import create_agent
-from agent.base import BaseAgent
+from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.agent import BaseAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -157,21 +157,30 @@ class TestOpenAIAgent(unittest.TestCase):
     async def test_simple_query(self) -> None:
         """Test a simple query without tools."""
         query = "What is the capital of France?"
-        response = await self.agent.chat(query)
-        
-        # Check if it's the new structured response
-        if isinstance(response, dict):
-            self.assertIn("message", response)
-            self.assertIsInstance(response["message"], str)
-            self.assertIn("tool_calls", response)
-            self.assertIn("thinking", response)
+        try:
+            response = await self.agent.chat(query)
             
-            # Check if there's actual content in the message
-            self.assertIn("Paris", response["message"])
-        else:
-            # For backward compatibility with string responses
-            self.assertIsInstance(response, str)
-            self.assertIn("Paris", response)
+            # Check if it's the new structured response
+            if isinstance(response, dict):
+                self.assertIn("message", response)
+                self.assertIsInstance(response["message"], str)
+                self.assertIn("tool_calls", response)
+                self.assertIn("thinking", response)
+                
+                # Check if there's actual content in the message
+                self.assertIn("Paris", response["message"])
+            else:
+                # For backward compatibility with string responses
+                self.assertIsInstance(response, str)
+                self.assertIn("Paris", response)
+        except Exception as e:
+            error_str = str(e)
+            # Skip the test if we encounter a rate limit or quota error
+            if "rate limit" in error_str.lower() or "quota" in error_str.lower() or "429" in error_str:
+                self.skipTest(f"API rate limit or quota exceeded: {error_str}")
+            else:
+                # Re-raise if it's not a rate limit issue
+                raise
 
     @async_test
     async def test_chat_with_user_info(self) -> None:

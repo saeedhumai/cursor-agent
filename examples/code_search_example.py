@@ -17,10 +17,10 @@ parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from agent.claude_agent import ClaudeAgent
-from agent.openai_agent import OpenAIAgent
-from agent.tools.search_tools import codebase_search
-from agent.tools.file_tools import read_file
+from cursor_agent_tools.agent import ClaudeAgent
+from cursor_agent_tools.agent import OpenAIAgent
+from cursor_agent_tools.tools.search_tools import codebase_search
+from cursor_agent_tools.tools.file_tools import read_file
 from examples.utils import (
     Colors, print_error, print_system_message, 
     print_user_query, print_assistant_response, 

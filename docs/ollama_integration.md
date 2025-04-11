@@ -30,7 +30,7 @@ Ollama allows you to run powerful large language models locally on your machine.
 ### Basic Setup
 
 ```python
-from cursor_agent.agent import create_agent
+from cursor_agent_tools.agent import create_agent
 
 # Create an Ollama agent
 agent = create_agent(
@@ -75,7 +75,7 @@ For a complete list of available models, visit the [Ollama Library](https://olla
 
 ```python
 import asyncio
-from cursor_agent.agent import create_agent
+from cursor_agent_tools.agent import create_agent
 
 async def main():
     # Create an Ollama agent
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 import os
-from cursor_agent.agent import create_agent
+from cursor_agent_tools.agent import create_agent
 
 async def main():
     # Create an Ollama agent
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from cursor_agent.agent import create_agent
+from cursor_agent_tools.agent import create_agent
 
 async def main():
     # Create an Ollama agent with a model that supports vision

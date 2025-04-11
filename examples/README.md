@@ -1,6 +1,6 @@
 # Cursor Agent Examples
 
-This directory contains examples demonstrating how to use the Cursor Agent in different scenarios. All examples use the streamlined import structure from the `cursor_agent.agent` package.
+This directory contains examples demonstrating how to use the Cursor Agent in different scenarios. All examples use the streamlined import structure from the `cursor_agent_tools.agent` package.
 
 ## Available Examples
 
@@ -142,10 +142,10 @@ from dotenv import load_dotenv
 import os
 import sys
 
-# Import from the cursor_agent package
-from cursor_agent.agent import create_agent
+# Import from the cursor_agent_tools package
+from cursor_agent_tools.agent import create_agent
 # For interactive applications
-from cursor_agent.agent import run_agent_interactive
+from cursor_agent_tools.agent import run_agent_interactive
 
 # Load environment variables
 load_dotenv()

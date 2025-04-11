@@ -20,7 +20,7 @@ parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from agent.factory import create_agent
+from cursor_agent_tools.agent import create_agent
 from examples.utils import (
     Colors,
     clear_screen,

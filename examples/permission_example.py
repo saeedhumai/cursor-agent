@@ -15,8 +15,8 @@ from typing import Dict, Optional
 # Add the parent directory to the path so we can import the agent module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent.factory import create_agent
-from agent.permissions import PermissionOptions
+from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.agent import PermissionOptions
 
 
 async def demo_normal_mode() -> None:
