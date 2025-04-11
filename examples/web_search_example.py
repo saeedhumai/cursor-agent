@@ -109,7 +109,7 @@ async def run_web_search_example():
         }
         
         # Demo query for web search
-        query = "What are the latest developments in quantum computing?"
+        query = "What are the latest developments in quantum computing in 2025?"
         
         print_system_message("Sending web search query...")
         print_user_query(query)
@@ -145,7 +145,7 @@ async def run_web_search_example():
             
         # Try another query with force=True
         print_separator()
-        force_query = "Show me information about classical computing, force web search."
+        force_query = "Show me information about classical computing in 2025, force web search."
         
         print_system_message("Sending another query with force=True...")
         print_user_query(force_query)
