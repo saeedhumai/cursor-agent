@@ -122,12 +122,12 @@ class BaseAgent(ABC):
     def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
         """
         Get structured JSON output from the agent based on the provided schema.
-        
+
         Args:
             prompt: The prompt describing what structured data to generate
             schema: JSON schema defining the structure of the response
             model: Optional alternative model to use for this request
-        
+
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """

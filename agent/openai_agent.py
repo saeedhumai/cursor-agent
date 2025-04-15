@@ -489,21 +489,21 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Get structured JSON output from OpenAI based on the provided schema.
         Uses function calling (tools) to enforce the output structure,
         which is more compatible with different models than the JSON mode.
-        
+
         Args:
             prompt: The prompt describing what structured data to generate
             schema: JSON schema defining the structure of the response
             model: Optional alternative OpenAI model to use for this request
-        
+
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
         import asyncio
         logger.info("Getting structured output from OpenAI")
-        
+
         # Use specified model or default to the agent's model
         model_to_use = model or self.model
-        
+
         try:
             # Create a tool specification based on the provided schema
             tools = [
@@ -516,7 +516,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     }
                 }
             ]
-            
+
             # Create a completion request to the OpenAI API with tools
             response = asyncio.run(self.client.chat.completions.create(
                 model=model_to_use,
@@ -529,7 +529,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 tool_choice={"type": "function", "function": {"name": "get_structured_data"}},
                 temperature=0
             ))
-            
+
             # Extract the JSON content from the function call
             if response.choices and response.choices[0].message.tool_calls:
                 try:
@@ -545,11 +545,11 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 except (AttributeError, IndexError) as e:
                     logger.error(f"Error accessing structured data: {str(e)}")
                     return {}
-            
+
             # If no tool calls are found, log an error and return empty dict
             logger.error("No tool calls found in OpenAI response")
             return {}
-            
+
         except Exception as e:
             logger.error(f"Error getting structured output from OpenAI: {str(e)}")
             return {}

@@ -10,11 +10,12 @@ Requirements:
 """
 
 import os
-import pytest
-import unittest
 import sys
 from pathlib import Path
 import dotenv
+import pytest
+import unittest
+from typing import ClassVar, Optional
 
 # Add the parent directory to the path so we can import the agent package
 parent_dir = str(Path(__file__).parent.parent.absolute())
@@ -24,11 +25,17 @@ if parent_dir not in sys.path:
 # Load environment variables from .env file if it exists
 dotenv.load_dotenv()
 
-from agent.tools.search_tools import trend_search, get_trending_topics
+# Import agent package components
+from agent.tools.search_tools import trend_search, get_trending_topics  # noqa: E402
 
 
 class TestTrendSearch(unittest.TestCase):
     """Test cases for the trend_search feature."""
+
+    # Add type hints for class variables
+    api_key: ClassVar[Optional[str]]
+    search_engine_id: ClassVar[Optional[str]]
+    skip_tests: ClassVar[bool]
 
     @classmethod
     def setUpClass(cls) -> None:

@@ -382,23 +382,23 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         Get structured JSON output from Ollama based on the provided schema.
         Uses function calling (tools) to enforce the output structure.
-        
+
         Args:
             prompt: The prompt describing what structured data to generate
             schema: JSON schema defining the structure of the response
             model: Optional alternative Ollama model to use for this request
-        
+
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
         import asyncio
         import json
-        
+
         logger.info("Getting structured output from Ollama")
-        
+
         # Use specified model or default to the agent's model
         model_to_use = model or self.model
-        
+
         try:
             # Create a tool specification based on the provided schema
             tool = {
@@ -413,14 +413,19 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     },
                 },
             }
-            
+
             # Prepare messages for the API call
             messages = [
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": prompt}
             ]
-            
+
             # Call the Ollama API with the tool
+            # Ensure model_to_use is not None to satisfy type checker
+            if not model_to_use:
+                logger.error("No model specified for Ollama structured output")
+                return {}
+
             response = asyncio.run(self.async_client.chat(
                 model=model_to_use,
                 messages=cast(Any, messages),
@@ -430,7 +435,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     **self.extra_kwargs
                 }
             ))
-            
+
             # Extract the JSON content from the function call
             if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
                 try:
@@ -439,7 +444,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         if hasattr(tool_call, 'function') and tool_call.function.name == 'get_structured_data':
                             # Extract function arguments
                             function_args = tool_call.function.arguments
-                            
+
                             # Parse arguments from either string or dict
                             if isinstance(function_args, str):
                                 structured_data = json.loads(function_args)
@@ -448,13 +453,13 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             else:
                                 logger.error(f"Unexpected function arguments type: {type(function_args)}")
                                 return {}
-                                
+
                             logger.debug(f"Received structured data: {json.dumps(structured_data)[:100]}...")
                             return structured_data
-                            
+
                     logger.error("No get_structured_data tool call found in response")
                     return {}
-                    
+
                 except json.JSONDecodeError as e:
                     logger.error(f"Error parsing JSON response: {str(e)}")
                     if hasattr(response.message.tool_calls[0], 'function'):
@@ -463,7 +468,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 except (AttributeError, IndexError) as e:
                     logger.error(f"Error accessing structured data: {str(e)}")
                     return {}
-            
+
             # If no tool calls are found, try to extract structured data from the content
             if hasattr(response.message, 'content') and response.message.content:
                 try:
@@ -478,10 +483,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         return structured_data
                 except json.JSONDecodeError:
                     logger.error("Failed to parse content as JSON")
-                    
+
             logger.error("No structured data found in Ollama response")
             return {}
-            
+
         except Exception as e:
             logger.error(f"Error getting structured output from Ollama: {str(e)}")
             return {}
