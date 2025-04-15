@@ -15,6 +15,9 @@ from agent import *
 import agent
 __all__ = agent.__all__
 
+# Add direct import of create_agent to fix import issue
+from agent.factory import create_agent
+
 # Handle submodule imports using PEP 302 import hooks
 import sys
 import os

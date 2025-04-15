@@ -3,7 +3,12 @@ Cursor Agent - Agent module providing the core functionality.
 """
 
 # Import and re-export the create_agent function from the original agent.factory
-from agent.factory import create_agent
+try:
+    # First try relative import
+    from .factory import create_agent
+except ImportError:
+    # Fall back to absolute import
+    from agent.factory import create_agent
 
 # Include any other functions or classes that should be available
 from agent.base import BaseAgent
