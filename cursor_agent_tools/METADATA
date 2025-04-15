@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: cursor-agent-tools
-Version: 0.1.32
+Version: 0.1.33
 Summary: A Python-based AI agent that replicates Cursor's coding assistant capabilities
 Home-page: https://github.com/civai-technologies/cursor-agent
 Author: Nifemi Alpine

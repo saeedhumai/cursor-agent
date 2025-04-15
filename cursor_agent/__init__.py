@@ -55,7 +55,7 @@ class AgentProxyFinder(importlib.abc.MetaPathFinder):
                 # Create a spec for our proxy module
                 return ModuleSpec(
                     name=fullname,
-                    loader=AgentProxyLoader(base_module_name),
+                    loader=AgentProxyLoader(base_module_name, self.package_name),
                     origin=spec.origin,
                     is_package=spec.submodule_search_locations is not None
                 )
@@ -66,9 +66,10 @@ class AgentProxyFinder(importlib.abc.MetaPathFinder):
 
 class ProxyModule(ModuleType):
     """A proxy module that forwards all attribute access to the original module."""
-    def __init__(self, name, original_module):
+    def __init__(self, name, original_module, parent_package=None):
         super().__init__(name)
         self._original_module = original_module
+        self._parent_package = parent_package
         
         # Copy all attributes from the original module
         for attr_name in dir(original_module):
@@ -77,21 +78,56 @@ class ProxyModule(ModuleType):
                     setattr(self, attr_name, getattr(original_module, attr_name))
                 except (AttributeError, ImportError):
                     pass
+        
+        # Special handling for certain modules and functions
+        if name.endswith('.agent'):
+            # For .agent modules, add all needed imports from agent package
+            try:
+                # Import create_agent from parent package
+                if parent_package:
+                    parent_mod = importlib.import_module(parent_package)
+                    if hasattr(parent_mod, 'create_agent'):
+                        setattr(self, 'create_agent', parent_mod.create_agent)
+                
+                # Import all agent classes and utilities directly
+                from agent.base import BaseAgent
+                setattr(self, 'BaseAgent', BaseAgent)
+                
+                from agent.claude_agent import ClaudeAgent
+                setattr(self, 'ClaudeAgent', ClaudeAgent)
+                
+                from agent.openai_agent import OpenAIAgent
+                setattr(self, 'OpenAIAgent', OpenAIAgent)
+                
+                from agent.ollama_agent import OllamaAgent
+                setattr(self, 'OllamaAgent', OllamaAgent)
+                
+                from agent.permissions import PermissionOptions
+                setattr(self, 'PermissionOptions', PermissionOptions)
+                
+                from agent.interact import run_agent_interactive, run_agent_chat
+                setattr(self, 'run_agent_interactive', run_agent_interactive)
+                setattr(self, 'run_agent_chat', run_agent_chat)
+            except (AttributeError, ImportError) as e:
+                # Log the error but continue
+                print(f"Warning: Could not import some agent classes: {e}")
+                pass
 
     def __getattr__(self, name):
         # For any attributes not copied, delegate to the original module
         return getattr(self._original_module, name)
 
 class AgentProxyLoader(importlib.abc.Loader):
-    def __init__(self, base_module_name):
+    def __init__(self, base_module_name, parent_package=None):
         self.base_module_name = base_module_name
+        self.parent_package = parent_package
     
     def create_module(self, spec):
         # Import the base module
         base_module = importlib.import_module(self.base_module_name)
         
         # Return a proxy module that wraps the base module
-        return ProxyModule(spec.name, base_module)
+        return ProxyModule(spec.name, base_module, self.parent_package)
     
     def exec_module(self, module):
         # Nothing to execute, our proxy is already set up
