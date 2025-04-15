@@ -42,6 +42,7 @@ The agent supports a comprehensive set of tools:
   - **grep_search**: Perform regex-based text search in files
   - **file_search**: Fuzzy search for files by name
   - **web_search**: Search the web for up-to-date information
+  - **trend_search**: Search for trending topics and their latest developments
 
 - **Image Analysis**:
   - **query_images**: Analyze and describe images using LLM vision capabilities
