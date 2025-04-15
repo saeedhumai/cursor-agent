@@ -91,9 +91,13 @@ class TestClaudeAgent(unittest.TestCase):
         self.assertIn("test_tool", self.agent.available_tools)
         self.assertEqual(self.agent.available_tools["test_tool"]["schema"]["description"], "Test tool")
 
-    @pytest.mark.asyncio
+    @async_test
+    @unittest.skipIf(not api_key, "Anthropic API key not available")
     async def test_chat(self) -> None:
         """Test the chat method returns a proper response"""
+        if not self.agent_api_key or not is_real_api_key(self.agent_api_key, "anthropic"):
+            self.skipTest("No valid Anthropic API key for live testing")
+            
         response = await self.agent.chat("What is the capital of France?")
         
         # Check if it's the new structured response

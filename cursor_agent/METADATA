@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: cursor-agent
+Version: 0.1.31
+Summary: A Python-based AI agent that replicates Cursor's coding assistant capabilities
+Home-page: https://github.com/civai-technologies/cursor-agent
+Author: Nifemi Alpine
+Author-email: hello@civai.co
+License: MIT
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.8 

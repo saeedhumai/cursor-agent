@@ -78,4 +78,5 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
+    metadata_version="2.1",
 )
