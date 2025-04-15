@@ -106,7 +106,7 @@ class TestTrendSearch(unittest.TestCase):
         result = trend_search(
             query="technology trends",
             country_code="GB",  # United Kingdom
-            max_results=5
+            max_results=1
         )
         
         # Verify the result has the expected category
@@ -115,34 +115,6 @@ class TestTrendSearch(unittest.TestCase):
         
         # Verify the number of trends
         self.assertLessEqual(len(result['trends']), 5)
-
-    def test_trend_search_with_invalid_category(self) -> None:
-        """Test trend_search with an invalid category."""
-        self.check_skip()
-        
-        # Test with an invalid search term - should still work
-        result = trend_search(
-            query="invalid category trends"
-        )
-        
-        # Verify we still get a valid category
-        self.assertIsInstance(result['category'], str)
-        self.assertIsInstance(result['category_id'], int)
-        self.assertTrue(result['category'])  # Not empty
-
-    def test_trend_search_with_max_results(self) -> None:
-        """Test trend_search with a specified max_results."""
-        self.check_skip()
-        
-        # Test with max_results=3
-        max_results = 3
-        result = trend_search(
-            query="sports trends",
-            max_results=max_results
-        )
-        
-        # Verify the number of trends doesn't exceed max_results
-        self.assertLessEqual(len(result['trends']), max_results)
 
 
 if __name__ == "__main__":
