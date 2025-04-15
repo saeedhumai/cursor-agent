@@ -482,6 +482,77 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         # Use the centralized tool registration function
         logger.info("Registering default tools")
         register_default_tools(self)
+        logger.info(f"Registered {len(self.available_tools)} default tools")
+
+    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get structured JSON output from OpenAI based on the provided schema.
+        Uses function calling (tools) to enforce the output structure,
+        which is more compatible with different models than the JSON mode.
+        
+        Args:
+            prompt: The prompt describing what structured data to generate
+            schema: JSON schema defining the structure of the response
+            model: Optional alternative OpenAI model to use for this request
+        
+        Returns:
+            Dictionary containing the structured response that conforms to the schema
+        """
+        import asyncio
+        logger.info("Getting structured output from OpenAI")
+        
+        # Use specified model or default to the agent's model
+        model_to_use = model or self.model
+        
+        try:
+            # Create a tool specification based on the provided schema
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_structured_data",
+                        "description": "Generate structured data based on the user's request",
+                        "parameters": schema
+                    }
+                }
+            ]
+            
+            # Create a completion request to the OpenAI API with tools
+            response = asyncio.run(self.client.chat.completions.create(
+                model=model_to_use,
+                max_tokens=2000,
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                tools=tools,
+                tool_choice={"type": "function", "function": {"name": "get_structured_data"}},
+                temperature=0
+            ))
+            
+            # Extract the JSON content from the function call
+            if response.choices and response.choices[0].message.tool_calls:
+                try:
+                    # Extract function arguments
+                    function_args = response.choices[0].message.tool_calls[0].function.arguments
+                    structured_data = json.loads(function_args)
+                    logger.debug(f"Received structured data: {json.dumps(structured_data)[:100]}...")
+                    return structured_data
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parsing JSON response: {str(e)}")
+                    logger.error(f"Raw response: {response.choices[0].message.tool_calls[0].function.arguments}")
+                    return {}
+                except (AttributeError, IndexError) as e:
+                    logger.error(f"Error accessing structured data: {str(e)}")
+                    return {}
+            
+            # If no tool calls are found, log an error and return empty dict
+            logger.error("No tool calls found in OpenAI response")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting structured output from OpenAI: {str(e)}")
+            return {}
 
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
         """

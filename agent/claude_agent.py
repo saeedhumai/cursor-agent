@@ -523,6 +523,74 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         # Use the centralized tool registration function
         logger.info("Registering default tools")
         register_default_tools(self)
+        logger.info(f"Registered {len(self.available_tools)} default tools")
+
+    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get structured JSON output from Claude based on the provided schema.
+        Uses Claude's tool calling capabilities to enforce the output structure.
+        
+        Args:
+            prompt: The prompt describing what structured data to generate
+            schema: JSON schema defining the structure of the response
+            model: Optional alternative Claude model to use for this request
+            
+        Returns:
+            Dictionary containing the structured response that conforms to the schema
+        """
+        import asyncio
+        logger.info("Getting structured output from Claude")
+        
+        # Use specified model or default to the agent's model
+        model_to_use = model or self.model
+        
+        # Create a temporary tool that defines the expected output structure
+        structured_output_tool = {
+            "name": "generate_structured_output",
+            "description": "Generate a structured output response based on the provided schema",
+            "input_schema": schema
+        }
+        
+        try:
+            # Create a message to the Claude API
+            response = asyncio.run(self.client.messages.create(
+                model=model_to_use,
+                max_tokens=2000,
+                system=self.system_prompt,
+                messages=[{"role": "user", "content": prompt}],
+                tools=[structured_output_tool],
+                temperature=0
+            ))
+            
+            # Process the response content
+            if response.content:
+                for content in response.content:
+                    if content.type == "tool_use":
+                        # Extract the structured data from the tool call
+                        tool_data = content.tool_use.input
+                        logger.debug(f"Received structured data: {json.dumps(tool_data)[:100]}...")
+                        return tool_data
+                    elif content.type == "text":
+                        # If we got text content instead of a tool call, try to parse JSON from it
+                        try:
+                            # Look for JSON-like content in the text
+                            import re
+                            json_match = re.search(r'\{.*\}', content.text, re.DOTALL)
+                            if json_match:
+                                json_str = json_match.group(0)
+                                structured_data = json.loads(json_str)
+                                logger.debug(f"Parsed JSON from text response: {json.dumps(structured_data)[:100]}...")
+                                return structured_data
+                        except (json.JSONDecodeError, AttributeError) as e:
+                            logger.warning(f"Could not parse JSON from text response: {str(e)}")
+            
+            # If no valid response found, log an error and return empty dict
+            logger.error("No valid structured output found in Claude's response")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting structured output from Claude: {str(e)}")
+            return {}
 
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
         """

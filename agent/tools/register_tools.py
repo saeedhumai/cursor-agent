@@ -252,8 +252,8 @@ def register_default_tools(agent: Any) -> None:
     # Web search
     agent.register_tool(
         "web_search",
-        lambda search_term, explanation=None, force=False, objective=None: search_tools.web_search(
-            search_term, explanation, force, objective, agent
+        lambda search_term, explanation=None, force=False, objective=None, max_results=5, lookback_hours=48: search_tools.web_search(
+            search_term, explanation, force, objective, max_results, lookback_hours, agent
         ),
         "Search the web for information.",
         {
@@ -275,11 +275,55 @@ def register_default_tools(agent: Any) -> None:
                     "type": "string",
                     "description": "User objective to determine if up-to-date data is needed",
                 },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (default: 3)",
+                },
+                "lookback_hours": {
+                    "type": "integer",
+                    "description": "Number of hours to look back for results (default: 48)",
+                },
             },
             "required": ["search_term"],
         },
     )
     logger.debug("Registered tool: web_search")
+    
+    # Trend search
+    agent.register_tool(
+        "trend_search",
+        lambda query, explanation=None, country_code="US", days=7, max_results=3: search_tools.trend_search(
+            query, explanation, country_code, days, max_results, agent
+        ),
+        "Search for trending topics related to a query.",
+        {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The query about trends to search for",
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": "One sentence explanation as to why this search is being performed",
+                },
+                "country_code": {
+                    "type": "string",
+                    "description": "Country code for trends (default: US)",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of days to look back for trends (default: 7)",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of trends to return (default: 3)",
+                },
+            },
+            "required": ["query"],
+        },
+    )
+    logger.debug("Registered tool: trend_search")
     
     # Image query tool
     agent.register_tool(
