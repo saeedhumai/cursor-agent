@@ -3,6 +3,7 @@ Utility module for registering agent tools with permission handling.
 """
 
 from typing import Any
+import asyncio
 
 from ..logger import get_logger
 from . import (
@@ -285,43 +286,49 @@ def register_default_tools(agent: Any) -> None:
     )
     logger.debug("Registered tool: web_search")
     
-    # Trend search
+    # Register trend search tool
     agent.register_tool(
         "trend_search",
-        lambda query, explanation=None, country_code="US", days=7, max_results=3, lookback_hours=48: search_tools.trend_search(
-            query, explanation, country_code, days, max_results, lookback_hours, agent
-        ),
-        "Search for trending topics related to a query.",
+        lambda query, explanation=None, country_code="US", days=7, max_results=3, lookback_hours=48: asyncio.run(search_tools.trend_search(
+            query=query,
+            explanation=explanation,
+            country_code=country_code,
+            days=days,
+            max_results=max_results,
+            lookback_hours=lookback_hours,
+            agent=agent
+        )),
+        "Search for trending topics related to a query",
         {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The query about trends to search for",
+                    "description": "The query to search trends for"
                 },
                 "explanation": {
                     "type": "string",
-                    "description": "One sentence explanation as to why this search is being performed",
+                    "description": "Optional explanation of why this search is being performed"
                 },
                 "country_code": {
                     "type": "string",
-                    "description": "Country code for trends (default: US)",
+                    "description": "Country code for trends (default: US)"
                 },
                 "days": {
                     "type": "integer",
-                    "description": "Number of days to look back for trends (default: 7)",
+                    "description": "Number of days to look back for trends (default: 7)"
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Maximum number of trends to return (default: 3)",
+                    "description": "Maximum number of trends to return (default: 3)"
                 },
                 "lookback_hours": {
                     "type": "integer",
-                    "description": "Number of hours to look back for Google Trends data (default: 48)",
-                },
+                    "description": "Number of hours to look back for Google Trends data (default: 48)"
+                }
             },
-            "required": ["query"],
-        },
+            "required": ["query"]
+        }
     )
     logger.debug("Registered tool: trend_search")
     

@@ -14,85 +14,48 @@ import sys
 from pathlib import Path
 import dotenv
 from pprint import pprint
+import asyncio
+from agent.tools.search_tools import trend_search
+from utils.print_utils import print_info, print_error, print_separator, print_system_message
 
 # Add the parent directory to the path so we can import the agent package
 parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from agent.tools.search_tools import trend_search
 from agent.factory import create_agent
 
 # Load environment variables from .env file if it exists
 dotenv.load_dotenv()
 
-
-def main():
-    """Run the trend_search examples."""
-    # Check if required API keys are available
-    if not os.environ.get("GOOGLE_API_KEY") or not os.environ.get("GOOGLE_SEARCH_ENGINE_ID"):
-        print("ERROR: GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables must be set.")
-        print("Please set these variables and try again.")
-        sys.exit(1)
+async def main():
+    """Run trend search examples."""
+    try:
+        print_system_message("TREND SEARCH DEMO")
+        print_separator()
         
-    # Initialize an agent for category determination
-    # Using gpt-4o for better function calling and structured output support
-    agent = create_agent("gpt-4o", use_tools=True)
-    print("Agent initialized for category determination")
-
-    # print("\n=== Example 1: Default Search (All Categories) ===")
-    # trends = trend_search(
-    #     query="current trends", 
-    #     max_results=1,
-    #     agent=agent
-    # )
-    # print(f"Category: {trends['category']}")
-    # print(f"Found {len(trends['trends'])} trends:")
-    # for i, trend in enumerate(trends['trends'], 1):
-    #     print(f"\n{i}. {trend['name']}")
-    #     print(f"   Snippet: {trend['snippet']}")
-    #     print(f"   Sources: {trend['sources'][:2]}")  # Show first 2 sources for brevity
-    
-    # print("\n=== Example 2: Entertainment Category ===")
-    # entertainment_trends = trend_search(
-    #     query="entertainment and arts trending topics",
-    #     max_results=1,
-    #     agent=agent
-    # )
-    # print(f"Category: {entertainment_trends['category']}")
-    # print(f"Found {len(entertainment_trends['trends'])} trends:")
-    # for i, trend in enumerate(entertainment_trends['trends'], 1):
-    #     print(f"\n{i}. {trend['name']}")
-    #     print(f"   Snippet: {trend['snippet']}")
-    #     print(f"   Sources: {trend['sources'][:2]}")
-    
-    print("\n=== Example 3: Technology Trends in UK ===")
-    uk_tech_trends = trend_search(
-        query="technology and science trending topics",
-        country_code="GB",  # United Kingdom
-        max_results=3,
-        agent=agent
-    )
-    print(f"Category: {uk_tech_trends['category']} (UK)")
-    print(f"Found {len(uk_tech_trends['trends'])} trends:")
-    for i, trend in enumerate(uk_tech_trends['trends'], 1):
-        print(f"\n{i}. {trend['name']}")
-        print(f"   Snippet: {trend['snippet']}")
-        print(f"   Sources: {trend['sources'][:2]}")
-    
-    # print("\n=== Example 4: Sports Trends ===")
-    # sports_trends = trend_search(
-    #     query="sports and fitness trending topics",
-    #     max_results=1,
-    #     agent=agent
-    # )
-    # print(f"Category: {sports_trends['category']}")
-    # print(f"Found {len(sports_trends['trends'])} trends:")
-    # for i, trend in enumerate(sports_trends['trends'], 1):
-    #     print(f"\n{i}. {trend['name']}")
-    #     print(f"   Snippet: {trend['snippet']}")
-    #     print(f"   Sources: {trend['sources'][:2]}")
-
+        # Example 1: Basic trend search
+        print_info("\n1. Basic trend search for entertainment trends")
+        uk_tech_trends = await trend_search(
+            query="What's trending in technology?",
+            country_code="GB",
+            max_results=3
+        )
+        
+        if "error" in uk_tech_trends:
+            print_error(f"Error: {uk_tech_trends['error']}")
+        else:
+            print_info(f"\nFound {len(uk_tech_trends['trends'])} trends in {uk_tech_trends['category']}")
+            for i, trend in enumerate(uk_tech_trends['trends'], 1):
+                print_info(f"\n{i}. {trend['name']}")
+                print_info(f"   Snippet: {trend['snippet'][:200]}...")
+                print_info(f"   Sources: {len(trend['sources'])}")
+        
+        print_separator()
+        print_system_message("TREND SEARCH DEMO COMPLETED")
+        
+    except Exception as e:
+        print_error(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

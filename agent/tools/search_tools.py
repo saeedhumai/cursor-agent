@@ -3,7 +3,6 @@ import os
 import re
 import subprocess
 import requests
-import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
 
@@ -482,7 +481,7 @@ def scrape_content_sync(search_results: Dict[str, Dict[str, Any]]) -> Dict[str, 
     return content_summaries
 
 
-def trend_search(
+async def trend_search(
     query: str,
     explanation: Optional[str] = None,
     country_code: str = "US",
@@ -542,7 +541,7 @@ def trend_search(
             category_name = "Arts & Entertainment"
             category_id = 4
         else:
-            category_name, category_id = _determine_trend_category(query, categories, agent)
+            category_name, category_id = await _determine_trend_category(query, categories, agent)
             logger.info(f"🏷️ Determined category: {category_name} (ID: {category_id})")
 
         # Step 2: Get a list of trends in this category
@@ -554,7 +553,7 @@ def trend_search(
         logger.info(f"📈 Getting trending topics for: '{search_term}'")
         
         # Get potential trends in this category
-        trends = get_trending_topics(search_term, category_name, country_code, lookback_hours, agent)
+        trends = await get_trending_topics(search_term, category_name, country_code, lookback_hours, agent)
         
         if not trends:
             logger.warning(f"❌ No trends found in category {category_name}")
@@ -655,7 +654,7 @@ def trend_search(
         return {"error": str(error), "trends": []}
 
 
-def get_trending_topics(search_term: str, category: str, country_code: str = 'US', lookback_hours: int = 48, agent: Optional[Any] = None) -> List[str]:
+async def get_trending_topics(search_term: str, category: str, country_code: str = 'US', lookback_hours: int = 48, agent: Optional[Any] = None) -> List[str]:
     """
     Get a list of trending topics in a category using Google Trends API.
     
@@ -811,7 +810,7 @@ def _extract_json_from_trends_response(text: str) -> List[Any]:
     return []
 
 
-def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], agent: Any) -> Tuple[str, int]:
+async def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], agent: Any) -> Tuple[str, int]:
     """
     Use the agent to determine the most appropriate category for the query.
     
@@ -851,7 +850,7 @@ def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], 
         """
         
         # Get structured output with schema validation
-        result = asyncio.run(agent.get_structured_output(prompt, category_schema))
+        result = await agent.get_structured_output(prompt, category_schema)
         
         if result and "category" in result:
             category = result["category"]
