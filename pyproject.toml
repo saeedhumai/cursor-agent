@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cursor-agent-tools"
-version = "0.1.31"
+version = "0.1.32"
 description = "A Python-based AI agent that replicates Cursor's coding assistant capabilities"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -36,7 +36,7 @@ addopts = "-ra -q"
 testpaths = ["tests"]
 
 [tool.bumpversion]
-current_version = "0.1.31"
+current_version = "0.1.32"
 commit = true
 tag = true
 
