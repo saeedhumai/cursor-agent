@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import requests
+import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 from bs4 import BeautifulSoup
 
@@ -850,7 +851,7 @@ def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], 
         """
         
         # Get structured output with schema validation
-        result = agent.get_structured_output(prompt, category_schema)
+        result = asyncio.run(agent.get_structured_output(prompt, category_schema))
         
         if result and "category" in result:
             category = result["category"]

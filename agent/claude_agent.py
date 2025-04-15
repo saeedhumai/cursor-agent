@@ -525,7 +525,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         register_default_tools(self)
         logger.info(f"Registered {len(self.available_tools)} default tools")
 
-    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+    async def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
         """
         Get structured JSON output from Claude based on the provided schema.
         Uses Claude's tool calling capabilities to enforce the output structure.
@@ -538,7 +538,6 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
-        import asyncio
         logger.info("Getting structured output from Claude")
         
         # Use specified model or default to the agent's model
@@ -553,14 +552,14 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         
         try:
             # Create a message to the Claude API
-            response = asyncio.run(self.client.messages.create(
+            response = await self.client.messages.create(
                 model=model_to_use,
                 max_tokens=2000,
                 system=self.system_prompt,
                 messages=[{"role": "user", "content": prompt}],
                 tools=[structured_output_tool],
                 temperature=0
-            ))
+            )
             
             # Process the response content
             if response.content:

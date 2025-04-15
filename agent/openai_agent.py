@@ -484,7 +484,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         register_default_tools(self)
         logger.info(f"Registered {len(self.available_tools)} default tools")
 
-    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+    async def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
         """
         Get structured JSON output from OpenAI based on the provided schema.
         Uses function calling (tools) to enforce the output structure,
@@ -498,7 +498,6 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
-        import asyncio
         logger.info("Getting structured output from OpenAI")
 
         # Use specified model or default to the agent's model
@@ -518,7 +517,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             ]
 
             # Create a completion request to the OpenAI API with tools
-            response = asyncio.run(self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model_to_use,
                 max_tokens=2000,
                 messages=[
@@ -528,7 +527,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 tools=tools,
                 tool_choice={"type": "function", "function": {"name": "get_structured_data"}},
                 temperature=0
-            ))
+            )
 
             # Extract the JSON content from the function call
             if response.choices and response.choices[0].message.tool_calls:

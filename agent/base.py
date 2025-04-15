@@ -119,7 +119,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+    async def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
         """
         Get structured JSON output from the agent based on the provided schema.
 

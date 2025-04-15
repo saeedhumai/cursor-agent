@@ -378,7 +378,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             logger.error(error_msg)
             return error_msg
 
-    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+    async def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
         """
         Get structured JSON output from Ollama based on the provided schema.
         Uses function calling (tools) to enforce the output structure.
@@ -391,7 +391,6 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
-        import asyncio
         import json
 
         logger.info("Getting structured output from Ollama")
@@ -426,7 +425,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 logger.error("No model specified for Ollama structured output")
                 return {}
 
-            response = asyncio.run(self.async_client.chat(
+            response = await self.async_client.chat(
                 model=model_to_use,
                 messages=cast(Any, messages),
                 tools=[tool],
@@ -434,7 +433,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     "temperature": 0,
                     **self.extra_kwargs
                 }
-            ))
+            )
 
             # Extract the JSON content from the function call
             if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
