@@ -21,17 +21,17 @@ parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from agent.tools.search_tools import trend_search, get_trending_topics
-
 # Load environment variables from .env file if it exists
 dotenv.load_dotenv()
+
+from agent.tools.search_tools import trend_search, get_trending_topics
 
 
 class TestTrendSearch(unittest.TestCase):
     """Test cases for the trend_search feature."""
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """Set up test class and check for required API keys."""
         cls.api_key = os.environ.get("GOOGLE_API_KEY")
         cls.search_engine_id = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
@@ -43,12 +43,12 @@ class TestTrendSearch(unittest.TestCase):
         else:
             cls.skip_tests = False
 
-    def check_skip(self):
+    def check_skip(self) -> None:
         """Check if tests should be skipped."""
         if self.skip_tests:
             self.skipTest("API keys not available")
 
-    def test_get_trending_topics(self):
+    def test_get_trending_topics(self) -> None:
         """Test the get_trending_topics function."""
         self.check_skip()
         
@@ -67,7 +67,7 @@ class TestTrendSearch(unittest.TestCase):
             self.assertIsInstance(topic, str)
             self.assertTrue(topic)  # Not empty
 
-    def test_trend_search_basic(self):
+    def test_trend_search_basic(self) -> None:
         """Test the basic functionality of trend_search."""
         self.check_skip()
         
@@ -91,7 +91,7 @@ class TestTrendSearch(unittest.TestCase):
             self.assertIn('sources', trend)
             self.assertIsInstance(trend['sources'], list)
 
-    def test_trend_search_with_custom_parameters(self):
+    def test_trend_search_with_custom_parameters(self) -> None:
         """Test trend_search with custom parameters."""
         self.check_skip()
         
@@ -109,7 +109,7 @@ class TestTrendSearch(unittest.TestCase):
         # Verify the number of trends
         self.assertLessEqual(len(result['trends']), 5)
 
-    def test_trend_search_with_invalid_category(self):
+    def test_trend_search_with_invalid_category(self) -> None:
         """Test trend_search with an invalid category."""
         self.check_skip()
         
@@ -123,7 +123,7 @@ class TestTrendSearch(unittest.TestCase):
         self.assertIsInstance(result['category_id'], int)
         self.assertTrue(result['category'])  # Not empty
 
-    def test_trend_search_with_max_results(self):
+    def test_trend_search_with_max_results(self) -> None:
         """Test trend_search with a specified max_results."""
         self.check_skip()
         

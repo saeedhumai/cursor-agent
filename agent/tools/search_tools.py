@@ -574,12 +574,12 @@ def trend_search(
         
         for i, trend in enumerate(trends[:max_results], 1):
             logger.info(f"\n👉 TREND #{i}: '{trend}'")
-            logger.info(f"   🔎 Searching for information about this trend...")
+            logger.info("   🔎 Searching for information about this trend...")
             
             # Search for information about the specific trend
             search_results = web_search(
                 search_term=trend,
-                explanation=f"Finding information about {trend}",
+                explanation="Finding information about {0}".format(trend),
                 force=True,
                 max_results=max_results
             )
@@ -614,7 +614,7 @@ def trend_search(
                     logger.debug(f"   Source: {url} ({len(content)} chars)")
             
             # Create trend data
-            trend_data = {
+            trend_data: Dict[str, Any] = {
                 "name": trend,
                 "snippet": snippet,
                 "sources": list(content_data.keys()),
@@ -629,10 +629,15 @@ def trend_search(
         
         if result_count > 0:
             logger.info("📊 SUMMARY OF PROCESSED TRENDS:")
-            for i, trend in enumerate(processed_trends, 1):
-                logger.info(f"   #{i}: '{trend['name']}'")
-                logger.info(f"      Snippet: '{trend['snippet'][:100]}...'")
-                logger.info(f"      Sources: {len(trend['sources'])}")
+            for i, trend_data in enumerate(processed_trends, 1):
+                # Ensure we.re getting from a Dict, not a string
+                if isinstance(trend_data, dict):
+                    name = trend_data.get('name', '')
+                    snippet = trend_data.get('snippet', '')
+                    sources = trend_data.get('sources', [])
+                    logger.info(f"   #{i}: '{name}'")
+                    logger.info(f"      Snippet: '{snippet[:100]}...'")
+                    logger.info(f"      Sources: {len(sources)}")
         
         return {
             "query": query,
@@ -656,6 +661,7 @@ def get_trending_topics(search_term: str, category: str, country_code: str = 'US
     Args:
         search_term: Search term (only used for logging)
         category: Category name
+        country_code: Country code for localized trends
         lookback_hours: Number of hours to look back for trends (default: 48)
         agent: Optional agent for extraction
         
@@ -706,7 +712,7 @@ def get_trending_topics(search_term: str, category: str, country_code: str = 'US
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         
-        logger.info(f"🔍 Connecting to Google Trends API for category {trends_category_id}...")
+        logger.info("🔍 Connecting to Google Trends API for category {0}...".format(trends_category_id))
         
         # Make the request
         response = requests.post(url, headers=headers, data=payload)
@@ -720,7 +726,7 @@ def get_trending_topics(search_term: str, category: str, country_code: str = 'US
             return []
         
         # Extract search terms with their search volume and category
-        trends_with_volume = []
+        trends_with_volume: List[Dict[str, Any]] = []
         for item in trends_data:
             try:
                 if len(item) < 7:  # Needs at least 7 elements to have search volume
@@ -747,10 +753,10 @@ def get_trending_topics(search_term: str, category: str, country_code: str = 'US
                 continue
         
         # Sort by search volume (highest first)
-        sorted_trends = sorted(trends_with_volume, key=lambda x: x["volume"], reverse=True)
+        sorted_trends = sorted(trends_with_volume, key=lambda x: x.get("volume", 0), reverse=True)
         
         # Get the top 10 search terms
-        top_terms = [item["term"] for item in sorted_trends[:10]]
+        top_terms: List[str] = [str(item["term"]) for item in sorted_trends[:10]]
         
         # Log results
         logger.info(f"✅ Retrieved {len(top_terms)} trending searches sorted by volume")
@@ -771,7 +777,7 @@ def get_trending_topics(search_term: str, category: str, country_code: str = 'US
         
         # If Google Trends API fails, fall back to using the agent or web search
         logger.info("⚠️ Falling back to alternative trend discovery method")
-        return [f"Error fetching trends using Google Trends API: {str(e)}"]
+        return ["Error fetching trends using Google Trends API: {0}".format(str(e))]
 
 
 def _extract_json_from_trends_response(text: str) -> List[Any]:
@@ -793,15 +799,18 @@ def _extract_json_from_trends_response(text: str) -> List[Any]:
                 # Extract and parse the nested JSON string
                 data = json.loads(intermediate[0][2])
                 # The trends data is in the second element
-                return data[1]
+                # Explicitly type as List[Any]
+                result: List[Any] = data[1]
+                return result
             except Exception as e:
                 logger.warning(f"⚠️ Error parsing JSON from Trends response: {str(e)}")
                 continue
     
+    # Return empty list if nothing found
     return []
 
 
-def _determine_trend_category(query: str, categories: Dict[str, int], agent: Any) -> Tuple[str, int]:
+def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], agent: Any) -> Tuple[str, int]:
     """
     Use the agent to determine the most appropriate category for the query.
     
@@ -843,12 +852,12 @@ def _determine_trend_category(query: str, categories: Dict[str, int], agent: Any
         # Get structured output with schema validation
         result = agent.get_structured_output(prompt, category_schema)
         
-        print("CATEGORY RESULT", result)
         if result and "category" in result:
             category = result["category"]
             category_id = categories.get(category, 4)  # Default to Arts & Entertainment (4) if not found
             
-            return category, category_id
+            # Ensure we return an int for category_id (not None)
+            return category, 4 if category_id is None else category_id
         
         # Fallback to Arts & Entertainment if no valid response
         logger.warning("Could not determine category, using default")

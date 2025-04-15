@@ -25,6 +25,9 @@ parent_dir = str(Path(__file__).parent.parent.absolute())
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Load environment variables from .env file if it exists
+dotenv.load_dotenv()
+
 from agent.tools.search_tools import trend_search, get_trending_topics
 
 # Load environment variables from .env file if it exists
@@ -35,7 +38,7 @@ class TestTrendSearchCategoriesAndCountries(unittest.TestCase):
     """Test cases for the trend_search category determination and country handling."""
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """Set up test class and check for required API keys."""
         cls.api_key = os.environ.get("GOOGLE_API_KEY")
         cls.search_engine_id = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
@@ -47,12 +50,12 @@ class TestTrendSearchCategoriesAndCountries(unittest.TestCase):
         else:
             cls.skip_tests = False
 
-    def check_skip(self):
+    def check_skip(self) -> None:
         """Check if tests should be skipped."""
         if self.skip_tests:
             self.skipTest("API keys not available")
             
-    def test_country_codes(self):
+    def test_country_codes(self) -> None:
         """Test if different country codes produce different results."""
         self.check_skip()
         
@@ -94,7 +97,7 @@ class TestTrendSearchCategoriesAndCountries(unittest.TestCase):
         for trend in jp_results['trends']:
             print(f"- {trend['name']}")
     
-    def test_various_queries(self):
+    def test_various_queries(self) -> None:
         """Test if different queries are properly processed."""
         self.check_skip()
         

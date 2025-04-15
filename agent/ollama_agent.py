@@ -378,6 +378,114 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             logger.error(error_msg)
             return error_msg
 
+    def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get structured JSON output from Ollama based on the provided schema.
+        Uses function calling (tools) to enforce the output structure.
+        
+        Args:
+            prompt: The prompt describing what structured data to generate
+            schema: JSON schema defining the structure of the response
+            model: Optional alternative Ollama model to use for this request
+        
+        Returns:
+            Dictionary containing the structured response that conforms to the schema
+        """
+        import asyncio
+        import json
+        
+        logger.info("Getting structured output from Ollama")
+        
+        # Use specified model or default to the agent's model
+        model_to_use = model or self.model
+        
+        try:
+            # Create a tool specification based on the provided schema
+            tool = {
+                'type': 'function',
+                'function': {
+                    'name': 'get_structured_data',
+                    'description': 'Generate structured data based on the user\'s request',
+                    'parameters': {
+                        'type': 'object',
+                        'properties': schema.get('properties', {}),
+                        'required': schema.get('required', []),
+                    },
+                },
+            }
+            
+            # Prepare messages for the API call
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Call the Ollama API with the tool
+            response = asyncio.run(self.async_client.chat(
+                model=model_to_use,
+                messages=cast(Any, messages),
+                tools=[tool],
+                options={
+                    "temperature": 0,
+                    **self.extra_kwargs
+                }
+            ))
+            
+            # Extract the JSON content from the function call
+            if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
+                try:
+                    # Find the tool call for get_structured_data
+                    for tool_call in response.message.tool_calls:
+                        if hasattr(tool_call, 'function') and tool_call.function.name == 'get_structured_data':
+                            # Extract function arguments
+                            function_args = tool_call.function.arguments
+                            
+                            # Parse arguments from either string or dict
+                            if isinstance(function_args, str):
+                                structured_data = json.loads(function_args)
+                            elif isinstance(function_args, dict):
+                                structured_data = function_args
+                            else:
+                                logger.error(f"Unexpected function arguments type: {type(function_args)}")
+                                return {}
+                                
+                            logger.debug(f"Received structured data: {json.dumps(structured_data)[:100]}...")
+                            return structured_data
+                            
+                    logger.error("No get_structured_data tool call found in response")
+                    return {}
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parsing JSON response: {str(e)}")
+                    if hasattr(response.message.tool_calls[0], 'function'):
+                        logger.error(f"Raw response: {response.message.tool_calls[0].function.arguments}")
+                    return {}
+                except (AttributeError, IndexError) as e:
+                    logger.error(f"Error accessing structured data: {str(e)}")
+                    return {}
+            
+            # If no tool calls are found, try to extract structured data from the content
+            if hasattr(response.message, 'content') and response.message.content:
+                try:
+                    # Try to parse the content as JSON
+                    content = response.message.content
+                    # Look for JSON-like content (between {} or [])
+                    import re
+                    match = re.search(r'(\{.*\}|\[.*\])', content, re.DOTALL)
+                    if match:
+                        structured_data = json.loads(match.group(0))
+                        logger.debug(f"Extracted structured data from content: {json.dumps(structured_data)[:100]}...")
+                        return structured_data
+                except json.JSONDecodeError:
+                    logger.error("Failed to parse content as JSON")
+                    
+            logger.error("No structured data found in Ollama response")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting structured output from Ollama: {str(e)}")
+            return {}
+
     def _prepare_tools(self) -> List[Dict[str, Any]]:
         """
         Format the registered tools for Ollama API.

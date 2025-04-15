@@ -90,3 +90,4 @@ tests/test_files_tmp/*
 tests/test_files_tmp
 demo_files/*
 *.code-workspace
+*.py-e

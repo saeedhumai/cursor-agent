@@ -252,8 +252,8 @@ def register_default_tools(agent: Any) -> None:
     # Web search
     agent.register_tool(
         "web_search",
-        lambda search_term, explanation=None, force=False, objective=None, max_results=5, lookback_hours=48: search_tools.web_search(
-            search_term, explanation, force, objective, max_results, lookback_hours, agent
+        lambda search_term, explanation=None, force=False, objective=None, max_results=5: search_tools.web_search(
+            search_term, explanation, force, objective, max_results, agent
         ),
         "Search the web for information.",
         {
@@ -279,10 +279,6 @@ def register_default_tools(agent: Any) -> None:
                     "type": "integer",
                     "description": "Maximum number of results to return (default: 3)",
                 },
-                "lookback_hours": {
-                    "type": "integer",
-                    "description": "Number of hours to look back for results (default: 48)",
-                },
             },
             "required": ["search_term"],
         },
@@ -292,8 +288,8 @@ def register_default_tools(agent: Any) -> None:
     # Trend search
     agent.register_tool(
         "trend_search",
-        lambda query, explanation=None, country_code="US", days=7, max_results=3: search_tools.trend_search(
-            query, explanation, country_code, days, max_results, agent
+        lambda query, explanation=None, country_code="US", days=7, max_results=3, lookback_hours=48: search_tools.trend_search(
+            query, explanation, country_code, days, max_results, lookback_hours, agent
         ),
         "Search for trending topics related to a query.",
         {
@@ -318,6 +314,10 @@ def register_default_tools(agent: Any) -> None:
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of trends to return (default: 3)",
+                },
+                "lookback_hours": {
+                    "type": "integer",
+                    "description": "Number of hours to look back for Google Trends data (default: 48)",
                 },
             },
             "required": ["query"],
