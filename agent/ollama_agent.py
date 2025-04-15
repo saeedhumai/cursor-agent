@@ -480,7 +480,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     if match:
                         structured_data = json.loads(match.group(0))
                         logger.debug(f"Extracted structured data from content: {json.dumps(structured_data)[:100]}...")
-                        return structured_data
+                        return structured_data if isinstance(structured_data, dict) else {"data": structured_data}
                 except json.JSONDecodeError:
                     logger.error("Failed to parse content as JSON")
 
@@ -503,7 +503,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             return []
 
         logger.debug(f"Preparing {len(self.available_tools)} tools for Ollama API")
-        tools = []
+        tools: List[Dict[str, Any]] = []
 
         for name, tool_data in self.available_tools.items():
             tools.append({

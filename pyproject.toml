@@ -2,16 +2,6 @@
 requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
-[project]
-name = "cursor-agent-tools"
-version = "0.1.32"
-description = "A Python-based AI agent that replicates Cursor's coding assistant capabilities"
-readme = "README.md"
-requires-python = ">=3.8"
-license = { text = "MIT" }
-authors = [
-    { name = "Nifemi Alpine", email = "hello@civai.co" }
-]
 
 [tool.black]
 line-length = 100
@@ -47,6 +37,7 @@ replace = 'version="{new_version}"'
 dependencies = [
     "anthropic>=0.49.0",
     "openai>=1.6.1",
+    "ollama>=0.4.0",
     "colorama>=0.4.6",
     "python-dotenv>=1.0.0",
     "typing-extensions>=4.8.0",

@@ -79,7 +79,7 @@ class TestTrendSearch(unittest.TestCase):
         self.check_skip()
         
         # Test with basic parameters
-        result = trend_search(query="entertainment trends")
+        result = trend_search(query="entertainment trends", max_results=1)
         
         # Verify the structure of the result
         self.assertIsInstance(result, dict)
