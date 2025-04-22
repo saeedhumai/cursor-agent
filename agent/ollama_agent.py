@@ -1,6 +1,5 @@
 """Ollama Agent module for handling agent operations with locally hosted Ollama models."""
 
-import base64
 import os
 from typing import Any, Dict, List, Optional, Callable, Union, TypedDict, cast
 
@@ -343,35 +342,26 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             The model's response to the query about the image(s)
         """
         try:
-            # Format images for Ollama multimodal input
-            content: List[Dict[str, Any]] = [{"type": "text", "text": query}]
-
-            for path in image_paths:
-                with open(path, "rb") as img_file:
-                    image_data = base64.b64encode(img_file.read()).decode('utf-8')
-                    content.append({"type": "image", "data": image_data})
-
-            # Prepare messages with image content
-            messages: List[Dict[str, Any]] = [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": content}
-            ]
-
-            # Call Ollama with multimodal content
-            if self.model:
-                response = await self.async_client.chat(
-                    model=self.model,
-                    messages=cast(Any, messages),
-                    options={
-                        "temperature": self.temperature,
-                        **self.extra_kwargs
-                    }
-                )
-
-                # Return just the message content
-                return str(response.message.content) if response.message and hasattr(response.message, "content") else ""
-            else:
+            if not self.model:
                 return "Error: No model specified for Ollama agent"
+
+            # Use the direct chat function with a simple message structure
+            # This follows the official ollama-python examples
+            response = await self.async_client.chat(
+                model=self.model,  # We've already checked it's not None
+                messages=[
+                    {
+                        'role': 'user',
+                        'content': query,
+                        'images': image_paths,
+                    }
+                ],
+            )
+
+            # Return the content of the response message
+            if hasattr(response, 'message') and hasattr(response.message, 'content'):
+                return str(response.message.content or "")
+            return "Error: Unexpected response format from Ollama model"
 
         except Exception as e:
             error_msg = f"Error in Ollama image query: {str(e)}"

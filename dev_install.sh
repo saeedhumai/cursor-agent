@@ -24,7 +24,7 @@ echo -e "${GREEN}Cleaning up previous builds...${NC}"
 rm -rf build/ dist/ *.egg-info/ cursor_agent.egg-info/ cursor_agent_tools.egg-info/
 
 echo -e "${GREEN}Installing package in development mode...${NC}"
-pip install -e .
+pip install -e . # -e is for editable mode
 
 echo -e "${GREEN}Verifying installation...${NC}"
 
