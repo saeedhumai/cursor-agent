@@ -5,6 +5,9 @@ from typing import Any, Dict, Optional
 from ..base import BaseAgent
 from ..logger import get_logger
 
+# Define exported functions
+__all__ = ["run_terminal_command"]
+
 # Initialize logger
 logger = get_logger(__name__)
 

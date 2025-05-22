@@ -39,7 +39,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/civai-technologies/cursor-agent",
-    packages=find_packages(include=["cursor_agent", "cursor_agent.*", "cursor_agent_tools", "cursor_agent_tools.*", "agent", "agent.*"]),
+    packages=find_packages(include=["cursor_agent_tools", "cursor_agent_tools.*"]),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",

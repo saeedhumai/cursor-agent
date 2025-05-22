@@ -5,13 +5,16 @@ This module tests the permission system for agent tools, verifying
 that permissions are correctly handled based on different configurations.
 """
 
+# Standard imports
 import os
 import pytest
+import tempfile
+import unittest
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from unittest.mock import patch, MagicMock
-from typing import Generator, Any
 
-from agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
-from agent.factory import create_agent
+from cursor_agent_tools.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+from cursor_agent_tools.factory import create_agent
 
 # Test directory for file operations
 TEST_DIR = "./test_permission_dir"

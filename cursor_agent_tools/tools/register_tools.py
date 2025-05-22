@@ -13,6 +13,9 @@ from . import (
     image_tools,
 )
 
+# Define exported functions
+__all__ = ["register_default_tools"]
+
 # Initialize logger
 logger = get_logger(__name__)
 

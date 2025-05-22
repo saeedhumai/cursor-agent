@@ -14,7 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Import from cursor_agent_tools package
-from cursor_agent_tools.agent import run_agent_interactive
+from cursor_agent_tools import run_agent_interactive
 
 # Ensure the examples directory is in the path
 examples_dir = Path(__file__).parent

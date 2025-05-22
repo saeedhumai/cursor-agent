@@ -6,9 +6,9 @@ from typing import Any, Dict
 
 import pytest
 
-from agent.tools.file_tools import create_file, delete_file, edit_file, list_directory, read_file
-from agent.tools.search_tools import file_search, grep_search
-from agent.tools.system_tools import run_terminal_command
+from cursor_agent_tools.tools.file_tools import create_file, delete_file, edit_file, list_directory, read_file
+from cursor_agent_tools.tools.search_tools import file_search, grep_search
+from cursor_agent_tools.tools.system_tools import run_terminal_command
 
 
 @pytest.mark.fs_tools

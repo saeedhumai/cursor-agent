@@ -17,6 +17,7 @@ import pytest
 import unittest
 from typing import ClassVar, Optional, Any
 import asyncio
+import json
 
 # Add the parent directory to the path so we can import the agent package
 parent_dir = str(Path(__file__).parent.parent.absolute())
@@ -27,7 +28,7 @@ if parent_dir not in sys.path:
 dotenv.load_dotenv()
 
 # Import agent package components
-from agent.tools.search_tools import trend_search, get_trending_topics  # noqa: E402
+from cursor_agent_tools.tools.search_tools import trend_search, get_trending_topics  # noqa: E402
 
 
 class TestTrendSearch(unittest.TestCase):

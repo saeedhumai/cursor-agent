@@ -8,7 +8,7 @@ from typing import Optional
 import pytest
 from dotenv import load_dotenv
 
-from agent.claude_agent import ClaudeAgent
+from cursor_agent_tools.claude_agent import ClaudeAgent
 
 # Load environment variables from .env file in parent directory
 env_path = Path(__file__).resolve().parent.parent / ".env"

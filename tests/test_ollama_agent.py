@@ -8,11 +8,11 @@ from typing import Any, Callable, TypeVar, Optional, ClassVar, Coroutine, Union,
 import pytest
 from unittest.mock import patch
 
-from agent.ollama_agent import OllamaAgent, OLLAMA_AVAILABLE
+from cursor_agent_tools.ollama_agent import OllamaAgent, OLLAMA_AVAILABLE
 from tests.utils import (
     create_user_info,
 )
-from agent.base import AgentResponse
+from cursor_agent_tools.base import AgentResponse
 
 # Type variable for the coroutine return type
 T = TypeVar('T')

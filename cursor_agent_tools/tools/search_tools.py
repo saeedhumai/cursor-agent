@@ -8,6 +8,16 @@ from bs4 import BeautifulSoup
 
 from ..logger import get_logger
 
+# Define exported functions
+__all__ = [
+    "codebase_search",
+    "grep_search",
+    "file_search",
+    "web_search",
+    "trend_search",
+    "get_trending_topics"
+]
+
 # Initialize logger
 logger = get_logger(__name__)
 

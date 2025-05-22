@@ -6,7 +6,7 @@ import unittest
 import pytest
 from typing import Any, Callable, Dict, Optional, ClassVar, Coroutine, TypeVar
 
-from agent.claude_agent import ClaudeAgent
+from cursor_agent_tools.claude_agent import ClaudeAgent
 from tests.utils import (
     check_response_quality,
     create_test_file,
@@ -153,7 +153,7 @@ class TestClaudeAgent(unittest.TestCase):
             self.test_file_path = tmp.name
         
         # Register tools
-        from agent.tools.file_tools import read_file, list_directory
+        from cursor_agent_tools.tools.file_tools import read_file, list_directory
         self.agent.register_tool(
             name="read_file", 
             function=read_file, 

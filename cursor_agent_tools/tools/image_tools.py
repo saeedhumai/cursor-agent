@@ -8,6 +8,11 @@ from typing import Any, Dict, List
 from ..logger import get_logger
 from ..permissions import PermissionStatus
 
+# Define exported functions
+__all__ = [
+    "query_images"
+]
+
 # Initialize logger
 logger = get_logger(__name__)
 

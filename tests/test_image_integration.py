@@ -12,9 +12,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from typing import Optional, Union
 
-from agent.claude_agent import ClaudeAgent
-from agent.openai_agent import OpenAIAgent
-from agent.permissions import PermissionOptions
+from cursor_agent_tools.claude_agent import ClaudeAgent
+from cursor_agent_tools.openai_agent import OpenAIAgent
+from cursor_agent_tools.permissions import PermissionOptions
 
 
 # Create a simple test image

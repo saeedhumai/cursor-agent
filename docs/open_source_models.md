@@ -59,7 +59,7 @@ For detailed instructions on setting up and using Ollama, please see the [Ollama
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     # Create an agent with an open-source model

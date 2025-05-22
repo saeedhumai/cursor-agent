@@ -115,12 +115,12 @@ run_checks_for_version() {
     # Step 2: Run linting checks
     print_header "STEP: Running Linting Checks"
 
-    echo -e "${CYAN}Running: flake8 agent tests --config=.flake8${NC}"
-    flake8 agent tests --config=.flake8
+    echo -e "${CYAN}Running: flake8 cursor_agent_tools tests --config=.flake8${NC}"
+    flake8 cursor_agent_tools tests --config=.flake8
     flake8_status=$?
 
-    echo -e "${CYAN}Running: mypy agent tests --config-file=.mypy.ini${NC}"
-    mypy agent tests --config-file=.mypy.ini
+    echo -e "${CYAN}Running: mypy cursor_agent_tools tests --config-file=.mypy.ini${NC}"
+    mypy cursor_agent_tools tests --config-file=.mypy.ini
     mypy_status=$?
 
     if [ $flake8_status -ne 0 ] || [ $mypy_status -ne 0 ]; then
@@ -138,8 +138,8 @@ run_checks_for_version() {
     python -m tests.create_test_dirs
 
     # Run tests with coverage
-    echo -e "${CYAN}Running: python -m pytest tests/ -v --ignore=tests/requires_api/ -k \"not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image\" --cov=agent --cov-report=term-missing${NC}"
-    python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image" --cov=agent --cov-report=term-missing
+    echo -e "${CYAN}Running: python -m pytest tests/ -v --ignore=tests/requires_api/ -k \"not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image\" --cov=cursor_agent_tools --cov-report=term-missing${NC}"
+    python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image" --cov=cursor_agent_tools --cov-report=term-missing
     test_status=$?
 
     if [ $test_status -eq 0 ]; then

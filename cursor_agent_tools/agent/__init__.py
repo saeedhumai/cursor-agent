@@ -1,19 +1,30 @@
 """
-Cursor Agent Tools - Agent module providing the core functionality.
+Compatibility layer for cursor_agent_tools.agent.
+
+This module re-exports all functionality from cursor_agent_tools for backward compatibility.
 """
 
-# Import create_agent directly from agent.factory
-from agent.factory import create_agent
+# Re-export main objects from cursor_agent_tools
+from cursor_agent_tools import (
+    # Core functionality
+    BaseAgent,
+    create_agent,
+    run_agent_interactive,
+    run_agent_chat,
+    PermissionOptions,
+    
+    # Agent implementations
+    ClaudeAgent,
+    OpenAIAgent,
+    OllamaAgent,
+)
 
-# Include any other functions or classes that should be available
-from agent.base import BaseAgent
-from agent.claude_agent import ClaudeAgent
-from agent.openai_agent import OpenAIAgent
-from agent.ollama_agent import OllamaAgent
-from agent.permissions import PermissionOptions
-# Import interactive functionality
-from agent.interact import run_agent_interactive, run_agent_chat
+# Re-export from specific modules if needed
+from cursor_agent_tools.permissions import (
+    PermissionManager,
+    PermissionRequest,
+    PermissionStatus,
+)
 
-# Define what should be available when using "from cursor_agent_tools.agent import *"
-__all__ = ["create_agent", "BaseAgent", "ClaudeAgent", "OpenAIAgent", "OllamaAgent",
-           "run_agent_interactive", "run_agent_chat", "PermissionOptions"] 
+# Make tools available through the agent module if needed
+from cursor_agent_tools import tools 

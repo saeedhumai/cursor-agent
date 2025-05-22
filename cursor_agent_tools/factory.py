@@ -8,12 +8,12 @@ with consistent configuration.
 import os
 from typing import Optional, Callable, Any
 
-from agent.base import BaseAgent
-from agent.claude_agent import ClaudeAgent
-from agent.logger import get_logger
-from agent.openai_agent import OpenAIAgent
-from agent.ollama_agent import OllamaAgent
-from agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+from cursor_agent_tools.base import BaseAgent
+from cursor_agent_tools.claude_agent import ClaudeAgent
+from cursor_agent_tools.logger import get_logger
+from cursor_agent_tools.openai_agent import OpenAIAgent
+from cursor_agent_tools.ollama_agent import OllamaAgent
+from cursor_agent_tools.permissions import PermissionOptions, PermissionRequest, PermissionStatus
 
 # Initialize logger
 logger = get_logger(__name__)

@@ -23,7 +23,7 @@ There are two ways to use the web search feature:
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     # Create an agent instance
@@ -85,7 +85,7 @@ The web search returns a dictionary with the following structure:
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 from typing import Dict, Any
 
 async def run_web_search() -> Dict[str, Any]:

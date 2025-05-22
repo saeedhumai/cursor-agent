@@ -20,8 +20,8 @@ Any operation that could potentially modify the user's system or access sensitiv
 The `PermissionOptions` class is the central configuration point for the permission system. You can create an instance of this class and pass it to the agent factory when creating an agent:
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.permissions import PermissionOptions
+from cursor_agent_tools import create_agent
 
 # Create permission options
 permissions = PermissionOptions(
@@ -168,8 +168,8 @@ To create your own permission request interface:
 3. Pass your callback to the agent via the `PermissionOptions` class
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+from cursor_agent_tools import create_agent
 
 def custom_permission_callback(request: PermissionRequest) -> PermissionStatus:
     # Your custom implementation here
@@ -194,8 +194,8 @@ agent = create_agent(
 ### Normal Mode (Requiring Confirmation)
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.permissions import PermissionOptions
+from cursor_agent_tools import create_agent
 
 permissions = PermissionOptions(yolo_mode=False)
 agent = create_agent(
@@ -216,8 +216,8 @@ result = agent.available_tools["edit_file"]["function"](
 ### Yolo Mode (Automatic Approval)
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools.permissions import PermissionOptions
+from cursor_agent_tools import create_agent
 
 permissions = PermissionOptions(
     yolo_mode=True,
@@ -240,7 +240,7 @@ result = agent.available_tools["run_terminal_command"]["function"](
 ### Basic Permission Configuration
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions
+from cursor_agent_tools.permissions import PermissionOptions
 
 # Strict mode - require confirmation for everything
 permissions = PermissionOptions(

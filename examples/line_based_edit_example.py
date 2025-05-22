@@ -12,15 +12,15 @@ script_dir = Path(__file__).parent
 parent_dir = script_dir.parent
 sys.path.append(str(parent_dir))
 
-from cursor_agent_tools.agent import create_agent
-from cursor_agent_tools.agent import BaseAgent
+from cursor_agent_tools import create_agent
+from cursor_agent_tools import BaseAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set agent.tools.file_tools logger to DEBUG
-file_tools_logger = logging.getLogger("agent.tools.file_tools")
+# Set cursor_agent_tools.tools.file_tools logger to DEBUG
+file_tools_logger = logging.getLogger("cursor_agent_tools.tools.file_tools")
 file_tools_logger.setLevel(logging.DEBUG)
 
 # Create a temporary directory for testing

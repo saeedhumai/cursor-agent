@@ -8,8 +8,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Any, Generator, Optional, Union
 
-from agent.tools.image_tools import query_images
-from agent.permissions import PermissionManager, PermissionOptions, PermissionStatus
+from cursor_agent_tools.tools.image_tools import query_images
+from cursor_agent_tools.permissions import PermissionManager, PermissionOptions, PermissionStatus
 
 
 @pytest.fixture

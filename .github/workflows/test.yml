@@ -29,14 +29,14 @@ jobs:
         
     - name: Run linting
       run: |
-        flake8 agent tests --config=.flake8
-        mypy agent tests --config-file=.mypy.ini
+        flake8 cursor_agent_tools tests --config=.flake8
+        mypy cursor_agent_tools tests --config-file=.mypy.ini
         
     - name: Run tests with coverage
       run: |
         # Run tests with -xvs to show output, make it verbose, and not capture output
         # Use -k "not" expressions to skip tests that require API keys or file system access
-        python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image" --cov=agent --cov-report=term-missing
+        python -m pytest tests/ -v --ignore=tests/requires_api/ -k "not test_openai_with_proxy and not test_chat_with_user_info and not test_file_tools and not test_image" --cov=cursor_agent_tools --cov-report=term-missing
         
     # - name: Upload coverage to Codecov
     #   uses: codecov/codecov-action@v3

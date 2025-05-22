@@ -11,7 +11,7 @@ import pytest
 from dotenv import load_dotenv
 from unittest.mock import patch, MagicMock
 
-from agent.openai_agent import OpenAIAgent
+from cursor_agent_tools.openai_agent import OpenAIAgent
 from tests.utils import (
     create_test_file,
     create_user_info,
@@ -19,7 +19,7 @@ from tests.utils import (
     get_test_env,
     is_real_api_key,
 )
-from agent.base import AgentResponse
+from cursor_agent_tools.base import AgentResponse
 
 # Type variable for the coroutine return type
 T = TypeVar('T')
@@ -216,7 +216,7 @@ class TestOpenAIAgent(unittest.TestCase):
         agent = self.agent
         
         # Register tools
-        from agent.tools.file_tools import read_file, list_directory
+        from cursor_agent_tools.tools.file_tools import read_file, list_directory
         agent.register_tool(
             name="read_file", 
             function=read_file, 

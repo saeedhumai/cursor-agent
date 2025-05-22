@@ -122,7 +122,7 @@ OLLAMA_HOST=http://localhost:11434
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     # Create a Claude agent instance
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 # Use Claude
 claude_agent = create_agent(model='claude-3-5-sonnet-latest')
@@ -161,7 +161,7 @@ response = await ollama_agent.chat("What's a good way to implement a cache in Py
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     # Create an agent with a local Ollama model
@@ -208,7 +208,7 @@ Note that tool calling and multimodal support depend on the capabilities of the 
 
 ```python
 import asyncio
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     # Define a custom system prompt for a coding tutor
@@ -263,7 +263,7 @@ This example creates a specialized coding tutor agent with a custom personality 
 ### Interactive Mode
 
 ```python
-from cursor_agent_tools.agent import run_agent_interactive
+from cursor_agent_tools import run_agent_interactive
 import asyncio
 
 async def main():
@@ -342,7 +342,7 @@ This adaptive limit ensures the agent doesn't make too many changes without your
 ### Providing Project Context
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 agent = create_agent(model='claude-3-5-sonnet-latest')
 
@@ -360,7 +360,7 @@ response = await agent.chat("Fix the bug in the main function", user_info=user_i
 ### Custom Tool Registration
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 agent = create_agent(model='claude-3-5-sonnet-latest')
 
@@ -455,8 +455,8 @@ cursor-agent/
 When creating an agent, you can customize its behavior:
 
 ```python
-from cursor_agent_tools.agent import create_agent
-from cursor_agent_tools.agent.permissions import PermissionOptions
+from cursor_agent_tools import create_agent
+from cursor_agent_tools.permissions import PermissionOptions
 
 # Create permission options
 permissions = PermissionOptions(
@@ -490,8 +490,8 @@ The CursorAgent includes a robust permission system for secure handling of syste
 ### Basic Usage
 
 ```python
-from cursor_agent_tools.agent import create_agent
-from cursor_agent_tools.agent.permissions import PermissionOptions
+from cursor_agent_tools import create_agent
+from cursor_agent_tools.permissions import PermissionOptions
 
 # Create an agent with default permissions (requires confirmation for all operations)
 permissions = PermissionOptions(yolo_mode=False)
@@ -517,7 +517,7 @@ agent = create_agent(
 The permission system can be adapted to different UI environments:
 
 ```python
-from cursor_agent_tools.agent.permissions import PermissionOptions, PermissionRequest, PermissionStatus
+from cursor_agent_tools.permissions import PermissionOptions, PermissionRequest, PermissionStatus
 
 # Create a custom permission handler for a GUI application
 def gui_permission_handler(request: PermissionRequest) -> PermissionStatus:
@@ -557,7 +557,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 ```python
 # Import the factory function
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 def create_agent(
     model: str,
@@ -584,7 +584,7 @@ def create_agent(
 ```python
 # Import necessary types
 from typing import Dict, List, Callable, Optional
-from cursor_agent_tools.agent import BaseAgent
+from cursor_agent_tools import BaseAgent
 
 class BaseAgent:
     async def chat(
@@ -615,7 +615,7 @@ Tools are Python functions registered with the agent. The cursor-agent library s
 #### Basic Tool Registration
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 agent = create_agent(model='claude-3-5-sonnet-latest')
 
@@ -641,7 +641,7 @@ agent.register_tool(
 #### API Integration Tools
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 import requests
 
 agent = create_agent(model='claude-3-5-sonnet-latest')
@@ -674,7 +674,7 @@ agent.register_tool(
 #### Data Processing Tools
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 import pandas as pd
 import json
 
@@ -725,7 +725,7 @@ The agent supports precise editing of files using line numbers:
 
 ```python
 import json
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 async def main():
     agent = create_agent(model='claude-3-5-sonnet-latest')
@@ -761,7 +761,7 @@ For more examples, check out [line_based_edit_example.py](examples/line_based_ed
 ### Providing Project Context
 
 ```python
-from cursor_agent_tools.agent import create_agent
+from cursor_agent_tools import create_agent
 
 agent = create_agent(model='claude-3-5-sonnet-latest')
 

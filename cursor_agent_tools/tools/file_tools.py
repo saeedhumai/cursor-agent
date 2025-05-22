@@ -5,6 +5,15 @@ import json
 from ..base import BaseAgent
 from ..logger import get_logger
 
+# Define exported functions
+__all__ = [
+    "read_file",
+    "edit_file",
+    "delete_file",
+    "create_file",
+    "list_directory"
+]
+
 # Initialize logger
 logger = get_logger(__name__)
 

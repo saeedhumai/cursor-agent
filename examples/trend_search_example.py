@@ -15,7 +15,7 @@ from pathlib import Path
 import dotenv
 from pprint import pprint
 import asyncio
-from agent.tools.search_tools import trend_search
+from cursor_agent_tools.tools.search_tools import trend_search
 from utils.print_utils import print_info, print_error, print_separator, print_system_message
 
 # Add the parent directory to the path so we can import the agent package

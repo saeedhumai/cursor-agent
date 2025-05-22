@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 # Import Ollama - will be installed as a dependency
 try:
     import ollama
+
     # For type checking, but we avoid direct import to prevent runtime errors
     Message = Any  # Placeholder for ollama.types.Message
     OLLAMA_AVAILABLE = True
@@ -23,6 +24,7 @@ except ImportError:
 
 class ToolCallResult(TypedDict):
     """Type for tool call results"""
+
     name: str
     parameters: Dict[str, Any]
     output: str
@@ -44,7 +46,7 @@ class OllamaAgent(BaseAgent):
         permission_options: Optional[PermissionOptions] = None,
         default_tool_timeout: int = 300,
         host: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         """
         Initialize an Ollama agent.
@@ -61,20 +63,22 @@ class OllamaAgent(BaseAgent):
             **kwargs: Additional parameters to pass to the model
         """
         if not OLLAMA_AVAILABLE:
-            raise ImportError("Ollama Python package is required. Install with 'pip install ollama'")
+            raise ImportError(
+                "Ollama Python package is required. Install with 'pip install ollama'"
+            )
 
         logger.info(f"Initializing Ollama agent with model {model}")
 
         # Remove "ollama-" prefix if present
         if model.startswith("ollama-"):
-            model = model[len("ollama-"):]
+            model = model[len("ollama-") :]
 
         super().__init__(
             api_key=None,
             model=model,
             permission_options=permission_options,
             permission_callback=permission_callback,
-            default_tool_timeout=default_tool_timeout
+            default_tool_timeout=default_tool_timeout,
         )
 
         self.temperature = temperature
@@ -109,7 +113,7 @@ class OllamaAgent(BaseAgent):
     def __del__(self) -> None:
         """Cleanup when the object is garbage collected."""
         # Restore original OLLAMA_HOST environment variable
-        if hasattr(self, 'original_host'):
+        if hasattr(self, "original_host"):
             if self.original_host is not None:
                 os.environ["OLLAMA_HOST"] = self.original_host
             else:
@@ -121,22 +125,19 @@ class OllamaAgent(BaseAgent):
         Raises ConnectionError if server is not available.
         """
         try:
-            # List models using the global client (OLLAMA_HOST env var already set in __init__)
-            models = ollama.list()
-            available_models: List[str] = []
-
-            print(models)
-
-            # Extract model names from response and handle model tags
-            for model_info in models.models:
-                model_name = model_info.model
-                if model_name:
-                    available_models.append(model_name)
-                    # Also store the model name without tag for family-based comparison
-                    if ":" in model_name:
-                        base_name = model_name.split(":")[0]
-                        if base_name not in available_models:
-                            available_models.append(base_name)
+            # Check available models
+            available_models = []
+            try:
+                # Get available models
+                model_list = ollama.list()
+                if hasattr(model_list, "models"):
+                    available_models = [m.get("name", "") for m in model_list.models if "name" in m]
+                elif isinstance(model_list, dict) and "models" in model_list:
+                    available_models = [
+                        m.get("name", "") for m in model_list["models"] if "name" in m
+                    ]
+            except Exception as e:
+                logger.warning(f"Failed to get list of available models: {str(e)}")
 
             if not available_models:
                 logger.warning("No models found in Ollama server. Please pull a model first.")
@@ -146,29 +147,39 @@ class OllamaAgent(BaseAgent):
             # Check if our model is available - first try exact match, then family match
             if self.model not in available_models:
                 # If model has a tag, also try without tag
-                model_base = self.model.split(":")[0] if ":" in self.model else self.model
-                if model_base != self.model and model_base in available_models:
-                    logger.info(f"Model variant '{self.model}' not found, but base model '{model_base}' is available")
-                    self.model = model_base  # Use available base model instead
+                if self.model and ":" in self.model:
+                    model_base = self.model.split(":")[0]
+                    if model_base != self.model and model_base in available_models:
+                        logger.info(
+                            f"Model variant '{self.model}' not found, but base model '{model_base}' is available"
+                        )
+                        self.model = model_base  # Use available base model instead
                 else:
-                    logger.warning(f"Model '{self.model}' not found in available models. "
-                                  f"You may need to pull it with 'ollama pull {self.model}'. "
-                                  f"Available models: {', '.join(available_models) if available_models else 'None'}")
+                    logger.warning(
+                        f"Model '{self.model}' not found in available models. "
+                        f"You may need to pull it with 'ollama pull {self.model}'. "
+                        f"Available models: {', '.join(available_models) if available_models else 'None'}"
+                    )
             else:
                 # Preload the model to get faster response times
                 logger.info(f"Preloading model '{self.model}' to improve response times")
                 try:
                     # Send an empty request to preload the model
-                    ollama.chat(model=self.model, messages=[])
-                    logger.info(f"Successfully preloaded model '{self.model}'")
+                    if self.model:  # Add null check to satisfy mypy
+                        ollama.chat(model=self.model, messages=[])
+                        logger.info(f"Successfully preloaded model '{self.model}'")
+                    else:
+                        logger.warning("Cannot preload model: No model specified")
                 except Exception as e:
                     logger.warning(f"Failed to preload model '{self.model}': {str(e)}")
                     # Continue execution even if preloading fails
 
         except Exception as e:
             logger.error(f"Error checking Ollama server: {str(e)}")
-            raise ConnectionError(f"Cannot connect to Ollama server at {self.host}. "
-                                  f"Is Ollama running? Error: {str(e)}")
+            raise ConnectionError(
+                f"Cannot connect to Ollama server at {self.host}. "
+                f"Is Ollama running? Error: {str(e)}"
+            )
 
     def _generate_system_prompt(self) -> str:
         """
@@ -247,7 +258,9 @@ You MUST use the following format when citing code regions or blocks:
 This is the ONLY acceptable format for code citations. The format is ```startLine:endLine:filepath where startLine and endLine are line numbers.
 """
 
-    async def chat(self, message: str, user_info: Optional[Dict[str, Any]] = None) -> Union[str, AgentResponse]:
+    async def chat(
+        self, message: str, user_info: Optional[Dict[str, Any]] = None
+    ) -> Union[str, AgentResponse]:
         """
         Send a message to the Ollama model and get a response.
 
@@ -271,15 +284,16 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     model=self.model,
                     messages=cast(Any, messages),
                     tools=tools,
-                    options={
-                        "temperature": self.temperature,
-                        **self.extra_kwargs
-                    }
+                    options={"temperature": self.temperature, **self.extra_kwargs},
                 )
 
                 # Add message to conversation history
                 self.conversation_history.append({"role": "user", "content": formatted_message})
-                content = str(response.message.content) if response.message and hasattr(response.message, "content") else ""
+                content = (
+                    str(response.message.content)
+                    if response.message and hasattr(response.message, "content")
+                    else ""
+                )
                 self.conversation_history.append({"role": "assistant", "content": content})
 
                 # Enhanced response quality for passing basic tests
@@ -291,31 +305,31 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
                 # Check for tool_calls in the response
                 tool_calls = []
-                if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
+                if hasattr(response.message, "tool_calls") and response.message.tool_calls:
                     logger.debug(f"Received tool calls from model: {response.message.tool_calls}")
                     # Process and execute tool calls from Ollama format
                     for tool_call in response.message.tool_calls:
-                        if hasattr(tool_call, 'function'):
+                        if hasattr(tool_call, "function"):
                             # Extract tool call details
                             tool_name = tool_call.function.name
                             tool_args = {}
 
                             # Convert arguments from either string or dict
-                            if hasattr(tool_call.function, 'arguments'):
+                            if hasattr(tool_call.function, "arguments"):
                                 if isinstance(tool_call.function.arguments, str):
                                     import json
+
                                     try:
                                         tool_args = json.loads(tool_call.function.arguments)
                                     except json.JSONDecodeError:
-                                        logger.error(f"Failed to parse tool arguments: {tool_call.function.arguments}")
+                                        logger.error(
+                                            f"Failed to parse tool arguments: {tool_call.function.arguments}"
+                                        )
                                         tool_args = {}
                                 elif isinstance(tool_call.function.arguments, dict):
                                     tool_args = tool_call.function.arguments
 
-                            tool_calls.append({
-                                "name": tool_name,
-                                "parameters": tool_args
-                            })
+                            tool_calls.append({"name": tool_name, "parameters": tool_args})
 
                 # Execute tool calls if present
                 if tool_calls:
@@ -329,17 +343,16 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             "parameters": result["parameters"],
                             "output": result["output"],
                             "error": result["error"],
-                            "thinking": None
+                            "thinking": None,
                         }
                         for result in tool_calls_results
                     ]
 
                     # Return structured agent response
-                    return cast(AgentResponse, {
-                        "message": content,
-                        "tool_calls": agent_tool_calls,
-                        "thinking": None
-                    })
+                    return cast(
+                        AgentResponse,
+                        {"message": content, "tool_calls": agent_tool_calls, "thinking": None},
+                    )
                 else:
                     # Return just the message content for simple responses
                     return content
@@ -372,15 +385,15 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 model=self.model,  # We've already checked it's not None
                 messages=[
                     {
-                        'role': 'user',
-                        'content': query,
-                        'images': image_paths,
+                        "role": "user",
+                        "content": query,
+                        "images": image_paths,
                     }
                 ],
             )
 
             # Return the content of the response message
-            if hasattr(response, 'message') and hasattr(response.message, 'content'):
+            if hasattr(response, "message") and hasattr(response.message, "content"):
                 return str(response.message.content or "")
             return "Error: Unexpected response format from Ollama model"
 
@@ -389,7 +402,9 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             logger.error(error_msg)
             return error_msg
 
-    async def get_structured_output(self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None) -> Dict[str, Any]:
+    async def get_structured_output(
+        self, prompt: str, schema: Dict[str, Any], model: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get structured JSON output from Ollama based on the provided schema.
         Uses function calling (tools) to enforce the output structure.
@@ -412,14 +427,14 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         try:
             # Create a tool specification based on the provided schema
             tool = {
-                'type': 'function',
-                'function': {
-                    'name': 'get_structured_data',
-                    'description': 'Generate structured data based on the user\'s request',
-                    'parameters': {
-                        'type': 'object',
-                        'properties': schema.get('properties', {}),
-                        'required': schema.get('required', []),
+                "type": "function",
+                "function": {
+                    "name": "get_structured_data",
+                    "description": "Generate structured data based on the user's request",
+                    "parameters": {
+                        "type": "object",
+                        "properties": schema.get("properties", {}),
+                        "required": schema.get("required", []),
                     },
                 },
             }
@@ -427,7 +442,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             # Prepare messages for the API call
             messages = [
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ]
 
             # Call the Ollama API with the tool
@@ -440,18 +455,18 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 model=model_to_use,
                 messages=cast(Any, messages),
                 tools=[tool],
-                options={
-                    "temperature": 0,
-                    **self.extra_kwargs
-                }
+                options={"temperature": 0, **self.extra_kwargs},
             )
 
             # Extract the JSON content from the function call
-            if hasattr(response.message, 'tool_calls') and response.message.tool_calls:
+            if hasattr(response.message, "tool_calls") and response.message.tool_calls:
                 try:
                     # Find the tool call for get_structured_data
                     for tool_call in response.message.tool_calls:
-                        if hasattr(tool_call, 'function') and tool_call.function.name == 'get_structured_data':
+                        if (
+                            hasattr(tool_call, "function")
+                            and tool_call.function.name == "get_structured_data"
+                        ):
                             # Extract function arguments
                             function_args = tool_call.function.arguments
 
@@ -461,10 +476,14 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             elif isinstance(function_args, dict):
                                 structured_data = function_args
                             else:
-                                logger.error(f"Unexpected function arguments type: {type(function_args)}")
+                                logger.error(
+                                    f"Unexpected function arguments type: {type(function_args)}"
+                                )
                                 return {}
 
-                            logger.debug(f"Received structured data: {json.dumps(structured_data)[:100]}...")
+                            logger.debug(
+                                f"Received structured data: {json.dumps(structured_data)[:100]}..."
+                            )
                             return structured_data
 
                     logger.error("No get_structured_data tool call found in response")
@@ -472,25 +491,34 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
                 except json.JSONDecodeError as e:
                     logger.error(f"Error parsing JSON response: {str(e)}")
-                    if hasattr(response.message.tool_calls[0], 'function'):
-                        logger.error(f"Raw response: {response.message.tool_calls[0].function.arguments}")
+                    if hasattr(response.message.tool_calls[0], "function"):
+                        logger.error(
+                            f"Raw response: {response.message.tool_calls[0].function.arguments}"
+                        )
                     return {}
                 except (AttributeError, IndexError) as e:
                     logger.error(f"Error accessing structured data: {str(e)}")
                     return {}
 
             # If no tool calls are found, try to extract structured data from the content
-            if hasattr(response.message, 'content') and response.message.content:
+            if hasattr(response.message, "content") and response.message.content:
                 try:
                     # Try to parse the content as JSON
                     content = response.message.content
                     # Look for JSON-like content (between {} or [])
                     import re
-                    match = re.search(r'(\{.*\}|\[.*\])', content, re.DOTALL)
+
+                    match = re.search(r"(\{.*\}|\[.*\])", content, re.DOTALL)
                     if match:
                         structured_data = json.loads(match.group(0))
-                        logger.debug(f"Extracted structured data from content: {json.dumps(structured_data)[:100]}...")
-                        return structured_data if isinstance(structured_data, dict) else {"data": structured_data}
+                        logger.debug(
+                            f"Extracted structured data from content: {json.dumps(structured_data)[:100]}..."
+                        )
+                        return (
+                            structured_data
+                            if isinstance(structured_data, dict)
+                            else {"data": structured_data}
+                        )
                 except json.JSONDecodeError:
                     logger.error("Failed to parse content as JSON")
 
@@ -516,18 +544,20 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         tools: List[Dict[str, Any]] = []
 
         for name, tool_data in self.available_tools.items():
-            tools.append({
-                'type': 'function',
-                'function': {
-                    'name': name,
-                    'description': tool_data["schema"]["description"],
-                    'parameters': {
-                        'type': 'object',
-                        'properties': tool_data["schema"]["parameters"]["properties"],
-                        'required': tool_data["schema"]["parameters"].get("required", []),
+            tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "description": tool_data["schema"]["description"],
+                        "parameters": {
+                            "type": "object",
+                            "properties": tool_data["schema"]["parameters"]["properties"],
+                            "required": tool_data["schema"]["parameters"].get("required", []),
+                        },
                     },
-                },
-            })
+                }
+            )
             logger.debug(f"Prepared tool: {name}")
 
         return tools
@@ -557,37 +587,45 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     tool_function = self.available_tools[tool_name]["function"]
                     result = tool_function(**parameters)
 
-                    tool_results.append({
-                        "name": tool_name,
-                        "parameters": parameters,
-                        "output": result.get("output", ""),
-                        "error": result.get("error", None)
-                    })
+                    tool_results.append(
+                        {
+                            "name": tool_name,
+                            "parameters": parameters,
+                            "output": result.get("output", ""),
+                            "error": result.get("error", None),
+                        }
+                    )
 
                     # Add the tool response to conversation history
-                    self.conversation_history.append({
-                        "role": "tool",
-                        "content": str(result.get("output", "")),
-                        "name": tool_name
-                    })
+                    self.conversation_history.append(
+                        {
+                            "role": "tool",
+                            "content": str(result.get("output", "")),
+                            "name": tool_name,
+                        }
+                    )
                 else:
                     error_msg = f"Tool '{tool_name}' not found"
                     logger.warning(error_msg)
-                    tool_results.append({
-                        "name": tool_name,
-                        "parameters": parameters,
-                        "output": "",
-                        "error": error_msg
-                    })
+                    tool_results.append(
+                        {
+                            "name": tool_name,
+                            "parameters": parameters,
+                            "output": "",
+                            "error": error_msg,
+                        }
+                    )
             except Exception as e:
                 error_msg = f"Error executing tool: {str(e)}"
                 logger.error(error_msg)
-                tool_results.append({
-                    "name": call.get("name", "unknown"),
-                    "parameters": call.get("parameters", {}),
-                    "output": "",
-                    "error": error_msg
-                })
+                tool_results.append(
+                    {
+                        "name": call.get("name", "unknown"),
+                        "parameters": call.get("parameters", {}),
+                        "output": "",
+                        "error": error_msg,
+                    }
+                )
 
         return tool_results
 
