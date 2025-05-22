@@ -551,6 +551,17 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 4. Set up API keys in a `.env` file
 5. Submit pull requests for features or fixes
 
+### Code Style
+
+We use flake8 for linting. To ensure consistent style, please make sure your code:
+
+1. Passes the flake8 linting check with `flake8 cursor_agent_tools`
+2. Has no whitespace issues. You can use the included script to fix common whitespace issues:
+   ```
+   python fix_whitespace_errors.py
+   ```
+   This will automatically fix trailing whitespace (W291) and blank lines with whitespace (W293) in the cursor_agent_tools directory.
+
 ## 📚 API Documentation
 
 ### Agent Factory

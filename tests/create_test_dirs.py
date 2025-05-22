@@ -13,31 +13,31 @@ import tempfile
 def create_test_directories() -> bool:
     """
     Create necessary test directories.
-    
+
     Returns:
         bool: True if all directories were created successfully, False otherwise
     """
     print("Creating test directories...")
-    
+
     # Save original working directory
     original_dir = os.getcwd()
     print(f"Original working directory: {original_dir}")
-    
+
     # List of directories to create
     directories = [
         "test_files_tmp",
         os.path.join("tests", "test_files_tmp"),
     ]
-    
+
     success = True
-    
+
     # Create each directory
     for directory in directories:
         try:
             # Use absolute path to avoid issues with changing directories
             path = os.path.abspath(os.path.join(original_dir, directory))
             print(f"Checking directory: {path}")
-            
+
             # Remove existing directory if it exists to ensure a clean state
             if os.path.exists(path):
                 try:
@@ -45,11 +45,11 @@ def create_test_directories() -> bool:
                     print(f"Removed existing directory: {path}")
                 except Exception as e:
                     print(f"Warning: Could not remove existing directory {path}: {e}")
-            
+
             # Create directory with explicit permissions
             os.makedirs(path, mode=0o755, exist_ok=True)
             print(f"Created directory: {path}")
-            
+
             # Verify the directory exists and is writable
             if not os.path.exists(path):
                 print(f"Error: Directory creation failed for {path}")
@@ -68,11 +68,11 @@ def create_test_directories() -> bool:
                 except Exception as e:
                     print(f"Error: Could not write to directory {path}: {e}")
                     success = False
-                    
+
         except Exception as e:
             print(f"Error creating directory {directory}: {e}")
             success = False
-    
+
     # Create and test a temporary chdir wrapper
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
@@ -90,7 +90,7 @@ def create_test_directories() -> bool:
             except Exception as ex:
                 print(f"Could not return to original directory! {ex}")
                 success = False
-    
+
     print("Test directories setup complete.")
     return success
 
@@ -98,4 +98,4 @@ def create_test_directories() -> bool:
 if __name__ == "__main__":
     print(f"Current working directory: {os.getcwd()}")
     success = create_test_directories()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)

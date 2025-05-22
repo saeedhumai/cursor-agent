@@ -6,4 +6,4 @@ This module re-exports all from cursor_agent_tools.tools.search_tools for backwa
 
 import cursor_agent_tools.tools.search_tools as search_tools
 
-__all__ = search_tools.__all__ 
+__all__ = search_tools.__all__

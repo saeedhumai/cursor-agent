@@ -31,7 +31,7 @@ def register_default_tools(agent: Any) -> None:
         agent: The agent instance to register tools with
     """
     logger.info("Registering default tools for agent")
-    
+
     # File tools with permission checks
     agent.register_tool(
         "read_file",
@@ -288,7 +288,7 @@ def register_default_tools(agent: Any) -> None:
         },
     )
     logger.debug("Registered tool: web_search")
-    
+
     # Register trend search tool
     agent.register_tool(
         "trend_search",
@@ -334,7 +334,7 @@ def register_default_tools(agent: Any) -> None:
         }
     )
     logger.debug("Registered tool: trend_search")
-    
+
     # Image query tool
     agent.register_tool(
         "query_images",
@@ -357,5 +357,5 @@ def register_default_tools(agent: Any) -> None:
         },
     )
     logger.debug("Registered tool: query_images")
-    
+
     logger.info(f"Successfully registered {len(agent.available_tools)} tools")

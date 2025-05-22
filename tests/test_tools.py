@@ -114,7 +114,7 @@ class TestSearchTools(unittest.TestCase):
             self.original_dir = os.path.abspath(os.path.dirname(__file__))
             os.chdir(self.original_dir)
             print(f"Reset working directory to: {self.original_dir}")
-            
+
         # Create a temp directory for test files using absolute paths
         try:
             # Create a test directory in the test_files_tmp directory
@@ -123,7 +123,7 @@ class TestSearchTools(unittest.TestCase):
             print(f"Test directory path: {self.test_dir}")
             print(f"Test directory exists: {os.path.exists(self.test_dir)}")
             print(f"Test directory is writable: {os.access(self.test_dir, os.W_OK)}")
-            
+
             # Create multiple test files with content to search
             self.files = []
             for i in range(3):
@@ -137,7 +137,7 @@ class TestSearchTools(unittest.TestCase):
             with open(self.py_file, "w") as f:
                 f.write("def search_function():\n    return 'FIND_ME_PY'\n")
             self.files.append(self.py_file)
-            
+
         except Exception as e:
             self.skipTest(f"Error setting up test environment: {str(e)}")
 
@@ -150,7 +150,7 @@ class TestSearchTools(unittest.TestCase):
                 print(f"Removed test directory: {self.test_dir}")
             except Exception as e:
                 print(f"Warning: Could not clean up test directory: {str(e)}")
-                
+
         # Return to original directory if we changed it
         if hasattr(self, "original_dir"):
             try:

@@ -27,7 +27,7 @@ if api_key:
     print(f"API key found: {api_key[:10]}...{api_key[-5:]}")
 
 
-@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), 
+@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"),
                   reason="ANTHROPIC_API_KEY environment variable not set")
 @pytest.mark.anthropic
 async def test_anthropic_direct():
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     if not api_key:
         print("Error: ANTHROPIC_API_KEY environment variable not set.")
         sys.exit(1)
-        
+
     success = asyncio.run(test_anthropic_direct())
     if success:
         print("\nDirect Anthropic API test completed successfully!")

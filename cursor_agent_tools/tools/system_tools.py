@@ -36,11 +36,11 @@ def run_terminal_command(
         logger.info(f"Executing terminal command: {command}")
         if explanation:
             logger.debug(f"Command explanation: {explanation}")
-            
+
         # Get timeout from agent if available, otherwise use default
         timeout = agent.default_tool_timeout if agent else 300
         logger.debug(f"Command options - background: {is_background}, require_approval: {require_user_approval}, timeout: {timeout}s")
-        
+
         # For safety, we'll add a check to prevent destructive commands
         dangerous_commands = ["rm -rf", "sudo rm", "dd", "mkfs", "format", ":(){:|:&};:"]
 
@@ -50,7 +50,7 @@ def run_terminal_command(
                 return {
                     "error": f"Command '{command}' contains potentially dangerous operation '{dangerous}'. Execution aborted."
                 }
-        
+
         # Request permission if agent is provided
         if agent:
             operation_details = {
@@ -58,12 +58,12 @@ def run_terminal_command(
                 "explanation": explanation,
                 "is_background": is_background,
             }
-            
+
             # For testing - special handling for sudo command to ensure test passes
             if "sudo" in command and agent.permission_manager.options.command_denylist and "sudo" in agent.permission_manager.options.command_denylist:
                 logger.warning(f"Command '{command}' contains 'sudo' which is in the denylist")
                 raise PermissionError(f"Permission denied to execute command: {command}")
-            
+
             if not agent.request_permission("run_terminal_command", operation_details):
                 # Raise an exception when permission is denied
                 logger.warning(f"Permission denied to execute command: {command}")
@@ -81,7 +81,7 @@ def run_terminal_command(
                 if " | cat" not in command:
                     command = f"{command} | cat"
                     logger.debug(f"Added '| cat' to pager command: {command}")
-                    
+
         # Add timeout command for non-background commands if available on system
         if not is_background:
             # Use timeout command on Unix-like systems
@@ -90,13 +90,13 @@ def run_terminal_command(
                 logger.debug(f"Added timeout wrapper: {command}")
 
         logger.debug(f"Executing final command: {command}")
-        
+
         # Start the process
         start_time = time.time()
         process = subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True
         )
-        
+
         # For background processes, don't wait
         if is_background:
             stdout = f"Command running in background with PID {process.pid}"
@@ -110,7 +110,7 @@ def run_terminal_command(
             except subprocess.TimeoutExpired:
                 # Kill the process if it exceeds timeout
                 logger.warning(f"Command timed out after {timeout} seconds: {command}")
-                
+
                 # Try gentle termination first
                 process.terminate()
                 try:
@@ -120,14 +120,14 @@ def run_terminal_command(
                     # If still running after grace period, force kill
                     logger.warning(f"Forcefully killing command: {command}")
                     process.kill()
-                
+
                 # Get any output that was produced before timeout
                 stdout, stderr = process.communicate()
                 exit_code = -1  # Special code for timeout
                 stderr += f"\nCommand timed out after {timeout} seconds"
 
         execution_time = time.time() - start_time
-        
+
         # Prepare the output
         result = {
             "command": command,

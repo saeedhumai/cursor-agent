@@ -44,7 +44,7 @@ class TestTrendSearch(unittest.TestCase):
         """Set up test class and check for required API keys."""
         cls.api_key = os.environ.get("GOOGLE_API_KEY")
         cls.search_engine_id = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
-        
+
         # Skip tests if API keys are not available
         if not cls.api_key or not cls.search_engine_id:
             cls.skip_tests = True
@@ -60,17 +60,17 @@ class TestTrendSearch(unittest.TestCase):
     async def test_get_trending_topics(self) -> None:
         """Test the get_trending_topics function."""
         self.check_skip()
-        
+
         # Test with default parameters
         search_term = "top trending topics in Arts & Entertainment"
         category = "Arts & Entertainment"
         topics = await get_trending_topics(search_term, category)
-        
+
         # Verify we got a result
         self.assertIsNotNone(topics)
         self.assertIsInstance(topics, list)
         self.assertGreater(len(topics), 0)
-        
+
         # Verify each topic is a string
         for topic in topics:
             self.assertIsInstance(topic, str)
@@ -79,20 +79,20 @@ class TestTrendSearch(unittest.TestCase):
     async def test_trend_search_basic(self) -> None:
         """Test the basic functionality of trend_search."""
         self.check_skip()
-        
+
         # Test with basic parameters
         result = await trend_search(query="entertainment trends", max_results=1)
-        
+
         # Verify the structure of the result
         self.assertIsInstance(result, dict)
         self.assertIn('category', result)
         self.assertIn('category_id', result)
         self.assertIn('trends', result)
-        
+
         # Verify trends are present
         self.assertIsInstance(result['trends'], list)
         self.assertGreater(len(result['trends']), 0)
-        
+
         # Verify structure of each trend
         for trend in result['trends']:
             self.assertIn('name', trend)
@@ -103,18 +103,18 @@ class TestTrendSearch(unittest.TestCase):
     async def test_trend_search_with_custom_parameters(self) -> None:
         """Test trend_search with custom parameters."""
         self.check_skip()
-        
+
         # Test with custom parameters
         result = await trend_search(
             query="technology trends",
             country_code="GB",  # United Kingdom
             max_results=1
         )
-        
+
         # Verify the result has the expected category
         self.assertIn(result['category'], ["Science & Technology", "Arts & Entertainment"])
         self.assertIsInstance(result['category_id'], int)
-        
+
         # Verify the number of trends
         self.assertLessEqual(len(result['trends']), 5)
 
@@ -123,7 +123,7 @@ class TestTrendSearch(unittest.TestCase):
 async def test_trend_search_basic() -> None:
     """Test basic trend search functionality."""
     result = await trend_search(query="entertainment trends", max_results=1)
-    
+
     assert isinstance(result, dict)
     assert "query" in result
     assert "category" in result
@@ -138,19 +138,19 @@ async def test_trend_search_with_agent() -> None:
     class MockAgent:
         async def get_structured_output(self, prompt: str, schema: Any) -> dict:
             return {"category": "Entertainment"}
-    
+
     mock_agent = MockAgent()
-    
+
     result = await trend_search(
         query="What's trending in movies?",
         max_results=1,
         agent=mock_agent
     )
-    
+
     assert isinstance(result, dict)
     assert result["category"] == "Entertainment"
     assert isinstance(result["trends"], list)
 
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

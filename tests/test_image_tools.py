@@ -19,12 +19,12 @@ def mock_agent() -> MagicMock:
     """
     agent = MagicMock()
     agent.query_image = AsyncMock(return_value="This is a test image of a landscape.")
-    
+
     # Set up permission manager with mocked request_permission method
     permission_manager = MagicMock()
     permission_manager.request_permission.return_value = PermissionStatus.GRANTED
     agent.permission_manager = permission_manager
-    
+
     return agent
 
 
@@ -46,9 +46,9 @@ async def test_query_images_successful(mock_agent: MagicMock, test_image: str) -
     """
     query = "What's in this image?"
     image_paths = [test_image]
-    
+
     result = await query_images(query, image_paths, mock_agent)
-    
+
     assert "result" in result
     assert result["result"] == "This is a test image of a landscape."
     mock_agent.query_image.assert_called_once_with(image_paths, query)
@@ -61,9 +61,9 @@ async def test_query_images_nonexistent_file(mock_agent: MagicMock) -> None:
     """
     query = "What's in this image?"
     nonexistent_path = "/path/to/nonexistent/image.jpg"
-    
+
     result = await query_images(query, [nonexistent_path], mock_agent)
-    
+
     assert "error" in result
     assert "not found" in result["error"]
     mock_agent.query_image.assert_not_called()
@@ -76,14 +76,14 @@ async def test_query_images_invalid_extension(mock_agent: MagicMock, test_image:
     """
     query = "What's in this image?"
     invalid_path = test_image + ".invalid"
-    
+
     # Create a copy with invalid extension
     with open(test_image, 'rb') as src, open(invalid_path, 'wb') as dst:
         dst.write(src.read())
-    
+
     try:
         result = await query_images(query, [invalid_path], mock_agent)
-        
+
         assert "error" in result
         assert "valid image" in result["error"]
         mock_agent.query_image.assert_not_called()
@@ -99,12 +99,12 @@ async def test_query_images_permission_denied(mock_agent: MagicMock, test_image:
     Test handling of permission denial.
     """
     query = "What's in this image?"
-    
+
     # Override permission manager to deny permissions
     mock_agent.permission_manager.request_permission = MagicMock(return_value=PermissionStatus.DENIED)
-    
+
     result = await query_images(query, [test_image], mock_agent)
-    
+
     assert "error" in result
     assert "denied" in result["error"]
     mock_agent.query_image.assert_not_called()
@@ -116,12 +116,12 @@ async def test_query_images_agent_error(mock_agent: MagicMock, test_image: str) 
     Test handling of agent errors.
     """
     query = "What's in this image?"
-    
+
     # Set up agent to raise an exception
     mock_agent.query_image = AsyncMock(side_effect=Exception("Test error"))
-    
+
     result = await query_images(query, [test_image], mock_agent)
-    
+
     assert "error" in result
     assert "Test error" in result["error"]
     mock_agent.query_image.assert_called_once()

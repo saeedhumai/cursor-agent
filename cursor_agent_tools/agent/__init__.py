@@ -12,7 +12,7 @@ from cursor_agent_tools import (
     run_agent_interactive,
     run_agent_chat,
     PermissionOptions,
-    
+
     # Agent implementations
     ClaudeAgent,
     OpenAIAgent,
@@ -27,4 +27,4 @@ from cursor_agent_tools.permissions import (
 )
 
 # Make tools available through the agent module if needed
-from cursor_agent_tools import tools 
+from cursor_agent_tools import tools

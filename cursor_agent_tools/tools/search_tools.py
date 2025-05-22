@@ -505,7 +505,7 @@ async def trend_search(
     1. Determining the trend category
     2. Getting a list of trends in that category
     3. Searching for content about each individual trend
-    
+
     Args:
         query: The user's query about trends
         explanation: Optional explanation of why this search is being performed
@@ -514,13 +514,13 @@ async def trend_search(
         max_results: Maximum number of trends to return (default: 3)
         lookback_hours: Number of hours to look back for Google Trends data (default: 48)
         agent: Reference to the agent instance for categorizing the query
-        
+
     Returns:
         Dict containing trend information with content from relevant sources
     """
     try:
         logger.info(f"🔍 Starting trend search for query: '{query}'")
-        
+
         # List of available categories with their IDs
         categories = {
             "All Categories": None,
@@ -544,7 +544,7 @@ async def trend_search(
             "Shopping": 16,
             "Travel & Transportation": 19
         }
-        
+
         # Step 1: Determine the trend category using the agent
         if not agent:
             logger.warning("❗ No agent provided for trend categorization, defaulting to Arts & Entertainment")
@@ -559,12 +559,12 @@ async def trend_search(
         search_term = f"top trending topics in {category_name} {days} days"
         if country_code and country_code != "US":
             search_term += f" in {country_code}"
-            
+
         logger.info(f"📈 Getting trending topics for: '{search_term}'")
-        
+
         # Get potential trends in this category
         trends = await get_trending_topics(search_term, category_name, country_code, lookback_hours, agent)
-        
+
         if not trends:
             logger.warning(f"❌ No trends found in category {category_name}")
             return {
@@ -576,16 +576,16 @@ async def trend_search(
                 "trends": [],
                 "total_trends": 0
             }
-            
+
         logger.info(f"🎯 Found {len(trends)} potential trends in {category_name}")
-        
+
         # Step 3: Search for content about each trend
         processed_trends = []
-        
+
         for i, trend in enumerate(trends[:max_results], 1):
             logger.info(f"\n👉 TREND #{i}: '{trend}'")
             logger.info("   🔎 Searching for information about this trend...")
-            
+
             # Search for information about the specific trend
             search_results = web_search(
                 search_term=trend,
@@ -593,7 +593,7 @@ async def trend_search(
                 force=True,
                 max_results=max_results
             )
-            
+
             # Check for API key error in search results
             if "error" in search_results and "Missing API keys" in search_results["error"]:
                 error_msg = "Google API keys are required for trend search. Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables."
@@ -602,18 +602,18 @@ async def trend_search(
                     "error": error_msg,
                     "trends": []
                 }
-            
+
             if not search_results or not search_results.get("results"):
                 logger.warning(f"   ❌ No search results found for trend: '{trend}'. Skipping.")
                 continue
-                
+
             # Get first result as the main snippet
             first_result = search_results["results"][0]
             snippet = first_result.get("content", "")[:300]  # Limit snippet size
-            
+
             logger.info(f"   📝 Got main snippet: '{snippet[:100]}...'")
             logger.info(f"   🌐 Found {len(search_results.get('results', []))} sources")
-            
+
             # Create a dictionary mapping URLs to their content
             content_data = {}
             for result in search_results["results"]:
@@ -622,7 +622,7 @@ async def trend_search(
                 if url and content:
                     content_data[url] = content
                     logger.debug(f"   Source: {url} ({len(content)} chars)")
-            
+
             # Create trend data
             trend_data: Dict[str, Any] = {
                 "name": trend,
@@ -630,13 +630,13 @@ async def trend_search(
                 "sources": list(content_data.keys()),
                 "content": content_data
             }
-            
+
             processed_trends.append(trend_data)
             logger.info(f"   ✅ Successfully processed trend: '{trend}'")
-        
+
         result_count = len(processed_trends)
         logger.info(f"🏁 Completed trend search. Processed {result_count} trends with content")
-        
+
         if result_count > 0:
             logger.info("📊 SUMMARY OF PROCESSED TRENDS:")
             for i, trend_data in enumerate(processed_trends, 1):
@@ -648,7 +648,7 @@ async def trend_search(
                     logger.info(f"   #{i}: '{name}'")
                     logger.info(f"      Snippet: '{snippet[:100]}...'")
                     logger.info(f"      Sources: {len(sources)}")
-        
+
         return {
             "query": query,
             "category": category_name,
@@ -658,7 +658,7 @@ async def trend_search(
             "trends": processed_trends,
             "total_trends": len(processed_trends)
         }
-    
+
     except Exception as error:
         logger.error(f"❌ Error in trend search: {str(error)}")
         return {"error": str(error), "trends": []}
@@ -667,14 +667,14 @@ async def trend_search(
 async def get_trending_topics(search_term: str, category: str, country_code: str = 'US', lookback_hours: int = 48, agent: Optional[Any] = None) -> List[str]:
     """
     Get a list of trending topics in a category using Google Trends API.
-    
+
     Args:
         search_term: Search term (only used for logging)
         category: Category name
         country_code: Country code for localized trends
         lookback_hours: Number of hours to look back for trends (default: 48)
         agent: Optional agent for extraction
-        
+
     Returns:
         List of trending topic names
     """
@@ -702,54 +702,54 @@ async def get_trending_topics(search_term: str, category: str, country_code: str
             "Shopping": 16,
             "Travel & Transportation": 19
         }
-        
+
         # Get the corresponding Google Trends category ID
         trends_category_id = category_id_map.get(category, 4)  # Default to Entertainment
-        
+
         logger.info(f"📊 Fetching trending topics in {category} (ID: {trends_category_id}) for {country_code}")
-        
+
         # Import needed libraries
         import requests
-        
+
         # Use the TrendsUi batchexecute endpoint with source-path for better results
         url = "https://trends.google.com/_/TrendsUi/data/batchexecute?source-path=/trending"
-        
+
         # Setting up payload with the selected category ID
         payload = f'f.req=[[["i0OFE","[null, null, \\"{country_code}\\", {trends_category_id}, \\"en-US\\", {lookback_hours}, 1]"]]]'
-        
+
         headers = {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        
+
         logger.info("🔍 Connecting to Google Trends API for category {0}...".format(trends_category_id))
-        
+
         # Make the request
         response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()
-        
+
         # Extract JSON from response
         trends_data = _extract_json_from_trends_response(response.text)
-        
+
         if not trends_data:
             logger.warning("❌ Failed to extract trends data from response")
             return []
-        
+
         # Extract search terms with their search volume and category
         trends_with_volume: List[Dict[str, Any]] = []
         for item in trends_data:
             try:
                 if len(item) < 7:  # Needs at least 7 elements to have search volume
                     continue
-                    
+
                 search_term = item[0].lower()
                 search_volume = item[6] if isinstance(item[6], int) else 0
-                
+
                 # Category information is in element 10
                 category_ids = []
                 if len(item) > 10 and isinstance(item[10], list):
                     category_ids = item[10]
-                
+
                 # Add to our list
                 if trends_category_id in category_ids:
                     trends_with_volume.append({
@@ -757,17 +757,17 @@ async def get_trending_topics(search_term: str, category: str, country_code: str
                         "volume": search_volume,
                         "category_ids": category_ids
                     })
-                
+
             except Exception as e:
                 logger.warning(f"⚠️ Error processing trend item: {str(e)}")
                 continue
-        
+
         # Sort by search volume (highest first)
         sorted_trends = sorted(trends_with_volume, key=lambda x: x.get("volume", 0), reverse=True)
-        
+
         # Get the top 10 search terms
         top_terms: List[str] = [str(item["term"]) for item in sorted_trends[:10]]
-        
+
         # Log results
         logger.info(f"✅ Retrieved {len(top_terms)} trending searches sorted by volume")
         for i, trend in enumerate(top_terms[:5], 1):
@@ -776,15 +776,15 @@ async def get_trending_topics(search_term: str, category: str, country_code: str
                 logger.info(f"   #{i}: {trend} (volume: {trend_info['volume']})")
             else:
                 logger.info(f"   #{i}: {trend}")
-                
+
         if len(top_terms) > 5:
             logger.info(f"   ... and {len(top_terms) - 5} more")
-            
+
         return top_terms
-        
+
     except Exception as e:
         logger.error(f"❌ Error fetching trends using Google Trends API: {str(e)}")
-        
+
         # If Google Trends API fails, fall back to using the agent or web search
         logger.info("⚠️ Falling back to alternative trend discovery method")
         return ["Error fetching trends using Google Trends API: {0}".format(str(e))]
@@ -793,10 +793,10 @@ async def get_trending_topics(search_term: str, category: str, country_code: str
 def _extract_json_from_trends_response(text: str) -> List[Any]:
     """
     Extracts the nested JSON object from the Google Trends API response.
-    
+
     Args:
         text: The response text from the API
-        
+
     Returns:
         Parsed JSON data containing trends
     """
@@ -815,7 +815,7 @@ def _extract_json_from_trends_response(text: str) -> List[Any]:
             except Exception as e:
                 logger.warning(f"⚠️ Error parsing JSON from Trends response: {str(e)}")
                 continue
-    
+
     # Return empty list if nothing found
     return []
 
@@ -823,12 +823,12 @@ def _extract_json_from_trends_response(text: str) -> List[Any]:
 async def _determine_trend_category(query: str, categories: Dict[str, Optional[int]], agent: Any) -> Tuple[str, int]:
     """
     Use the agent to determine the most appropriate category for the query.
-    
+
     Args:
         query: The user's query
         categories: Dictionary mapping category names to IDs
         agent: The agent instance
-        
+
     Returns:
         Tuple of (category_name, category_id)
     """
@@ -849,30 +849,30 @@ async def _determine_trend_category(query: str, categories: Dict[str, Optional[i
             },
             "required": ["category"]
         }
-        
+
         # Create prompt for category determination
         prompt = f"""
         Analyze the following query about trends and select the most appropriate category from the available options:
-        
+
         Query: {query}
-        
+
         Choose the category that best represents the kind of trends the user is looking for.
         """
-        
+
         # Get structured output with schema validation
         result = await agent.get_structured_output(prompt, category_schema)
-        
+
         if result and "category" in result:
             category = result["category"]
             category_id = categories.get(category, 4)  # Default to Arts & Entertainment (4) if not found
-            
+
             # Ensure we return an int for category_id (not None)
             return category, 4 if category_id is None else category_id
-        
+
         # Fallback to Arts & Entertainment if no valid response
         logger.warning("Could not determine category, using default")
         return "Arts & Entertainment", 4
-        
+
     except Exception as e:
         logger.error(f"Error determining category: {str(e)}")
         return "Arts & Entertainment", 4

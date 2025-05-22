@@ -64,7 +64,7 @@ if __name__ == "__main__":
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("Error: ANTHROPIC_API_KEY environment variable not found.")
         sys.exit(1)
-        
+
     success = asyncio.run(test_claude_chat())
     # The test function now returns None, so we need to check for exceptions instead
     print("\nClaude chat test completed successfully!")

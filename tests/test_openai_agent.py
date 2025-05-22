@@ -55,7 +55,7 @@ def async_test(coro: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., T]:
 @pytest.mark.openai
 class TestOpenAIAgent(unittest.TestCase):
     """Test the OpenAI agent functionality with real API."""
-    
+
     api_key: ClassVar[Optional[str]] = os.environ.get("OPENAI_API_KEY")
 
     def setUp(self) -> None:
@@ -68,7 +68,7 @@ class TestOpenAIAgent(unittest.TestCase):
             self.original_dir = os.path.abspath(os.path.dirname(__file__))
             os.chdir(self.original_dir)
             print(f"Reset working directory to: {self.original_dir}")
-            
+
         self.env = get_test_env()
 
         # Skip entire class if no valid API key
@@ -90,23 +90,23 @@ class TestOpenAIAgent(unittest.TestCase):
         # Debug information - use try/except to handle potential errors
         try:
             print(f"Current working directory: {os.getcwd()}")
-            
+
             # Create an absolute path for the test directory
             self.test_dir = os.path.abspath(os.path.join(self.original_dir, "test_files_tmp"))
-            
+
             # Ensure directory exists
             os.makedirs(self.test_dir, exist_ok=True)
-            
+
             print(f"Test directory path: {self.test_dir}")
             print(f"Test directory exists: {os.path.exists(self.test_dir)}")
             print(f"Test directory is writable: {os.access(self.test_dir, os.W_OK)}")
-            
+
             # Test that we can actually write to the directory
             test_file = os.path.join(self.test_dir, "test_permissions.txt")
             with open(test_file, 'w') as f:
                 f.write("Test file to verify permissions\n")
             os.remove(test_file)  # Clean up
-            
+
         except Exception as e:
             self.skipTest(f"Error setting up test environment: {str(e)}")
 
@@ -118,7 +118,7 @@ class TestOpenAIAgent(unittest.TestCase):
                 shutil.rmtree(self.test_dir, ignore_errors=True)
             except Exception as e:
                 print(f"Warning: Could not clean up test directory: {str(e)}")
-                
+
         # Return to original directory if we changed it
         if hasattr(self, "original_dir"):
             try:
@@ -136,7 +136,7 @@ class TestOpenAIAgent(unittest.TestCase):
         """Test registering tools."""
         api_key = os.environ.get("OPENAI_API_KEY") or "sk-dummy"
         agent = OpenAIAgent(api_key=api_key)
-        
+
         agent.register_tool(
             name="test_tool",
             function=lambda x: x,
@@ -148,7 +148,7 @@ class TestOpenAIAgent(unittest.TestCase):
                 "required": ["input"]
             }
         )
-        
+
         self.assertIn("test_tool", agent.available_tools)
         self.assertEqual(agent.available_tools["test_tool"]["schema"]["description"], "Test tool")
 
@@ -159,14 +159,14 @@ class TestOpenAIAgent(unittest.TestCase):
         query = "What is the capital of France?"
         try:
             response = await self.agent.chat(query)
-            
+
             # Check if it's the new structured response
             if isinstance(response, dict):
                 self.assertIn("message", response)
                 self.assertIsInstance(response["message"], str)
                 self.assertIn("tool_calls", response)
                 self.assertIn("thinking", response)
-                
+
                 # Check if there's actual content in the message
                 self.assertIn("Paris", response["message"])
             else:
@@ -189,15 +189,15 @@ class TestOpenAIAgent(unittest.TestCase):
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key or not is_real_api_key(api_key, "openai"):
             self.skipTest("No valid OpenAI API key for live testing")
-        
+
         agent = OpenAIAgent(api_key=api_key)
-        
+
         query = "What files do I have open?"
         user_info = create_user_info()
-        
+
         response = await agent.chat(query, user_info)
         self.assertTrue(check_response_quality(response))
-        
+
         # Check if it's the new structured response
         if isinstance(response, dict):
             self.assertIn("message", response)
@@ -212,15 +212,15 @@ class TestOpenAIAgent(unittest.TestCase):
         """Test file-related tools with real API."""
         if not self.agent:
             self.skipTest("Agent not initialized")
-        
+
         agent = self.agent
-        
+
         # Register tools
         from cursor_agent_tools.tools.file_tools import read_file, list_directory
         agent.register_tool(
-            name="read_file", 
-            function=read_file, 
-            description="Read a file", 
+            name="read_file",
+            function=read_file,
+            description="Read a file",
             parameters={
                 "properties": {
                     "path": {"type": "string", "description": "Path to the file"}
@@ -229,9 +229,9 @@ class TestOpenAIAgent(unittest.TestCase):
             }
         )
         agent.register_tool(
-            name="list_dir", 
-            function=list_directory, 
-            description="List directory contents", 
+            name="list_dir",
+            function=list_directory,
+            description="List directory contents",
             parameters={
                 "properties": {
                     "path": {"type": "string", "description": "Path to the directory"}
@@ -239,22 +239,22 @@ class TestOpenAIAgent(unittest.TestCase):
                 "required": ["path"]
             }
         )
-        
+
         # Create a temporary file
         test_file = "test_openai_file.txt"
         with open(test_file, "w") as f:
             f.write("This is a test file content.")
-        
+
         # Ask about the file
         response = await agent.chat(f"Can you read the file {test_file}?")
         self.assertTrue(check_response_quality(response))
-        
+
         # Check response appropriately based on type
         if isinstance(response, dict):
             # Verify it's a valid AgentResponse
             self.assertIn("message", response)
             self.assertIn("tool_calls", response)
-            
+
             # The response should either have content from the file or mention using a tool
             response_message = response["message"].lower()
             self.assertTrue(

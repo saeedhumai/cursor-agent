@@ -43,19 +43,19 @@ class ClaudeAgent(BaseAgent):
             **kwargs: Additional parameters to pass to the model
         """
         logger.info(f"Initializing Claude agent with model {model}")
-        
+
         super().__init__(
             api_key=api_key,
             model=model,
-            permission_options=permission_options, 
+            permission_options=permission_options,
             permission_callback=permission_callback,
             default_tool_timeout=default_tool_timeout
         )
-        
+
         self.temperature = temperature
         self.timeout = timeout
         self.extra_kwargs = kwargs
-        
+
         # Initialize Anthropic client
         self.client = AsyncAnthropic(api_key=api_key)
         logger.debug("Initialized Anthropic client")
@@ -93,7 +93,7 @@ class ClaudeAgent(BaseAgent):
 
         if not valid_prefix or not valid_length:
             logger.warning("Invalid API key format")
-            
+
         return valid_prefix and valid_length
 
     def _generate_system_prompt(self) -> str:
@@ -191,7 +191,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             }
             tools.append(tool)
             logger.debug(f"Prepared tool: {name}")
-            
+
         return tools if tools else None
 
     def _execute_tool_calls(self, tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -211,7 +211,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             tool_name = call["name"]
             tool_id = call.get("id")
             arguments = call.get("input", {})
-            
+
             logger.debug(f"Executing tool: {tool_name} (id: {tool_id})")
             logger.debug(f"Tool arguments: {json.dumps(arguments)}")
 
@@ -239,7 +239,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
 
                     # Format the result based on whether it's a string or a JSON-serializable object
                     content = result if isinstance(result, str) else json.dumps(result)
-                    
+
                     # Log a summary of the result
                     if isinstance(result, dict) and "error" in result:
                         logger.warning(f"Tool {tool_name} returned error: {result.get('error')}")
@@ -284,7 +284,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         # Format the user message with user_info if provided
         formatted_message = self.format_user_message(message, user_info)
-        
+
         logger.info("Sending message to Claude API")
         logger.debug(f"Message length: {len(formatted_message)} chars")
 
@@ -307,7 +307,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         tools = None
         if use_tools:
             tools = self._prepare_tools()
-            
+
         # Initialize the structured response
         processed_tool_calls: List[AgentToolCall] = []
         thinking = None  # Claude doesn't directly expose thinking, but we could add it in the future
@@ -320,7 +320,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 "temperature": self.temperature,
                 "system": self.system_prompt,  # System prompt as a separate parameter
             }
-            
+
             # Add properly typed messages
             typed_messages = []
             for msg in messages:
@@ -329,7 +329,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 else:
                     # Handle content that's not a string (e.g., structured content)
                     typed_messages.append(msg)
-            
+
             api_params["messages"] = typed_messages
 
             # Only include tools parameter if we have tools registered and are using tools
@@ -350,7 +350,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
             # Process any tool calls
             if response.content and any(block.type == "tool_use" for block in response.content):
                 logger.info("Response contains tool calls")
-                
+
                 # Add assistant message with tool calls to conversation history
                 assistant_content = []
                 for block in response.content:
@@ -363,7 +363,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                             "name": block.name,
                             "input": block.input
                         })
-                
+
                 self.conversation_history.append({"role": "assistant", "content": assistant_content})
 
                 # Extract tool calls
@@ -375,15 +375,15 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         )
 
                 logger.info(f"Extracted {len(tool_calls)} tool calls from response")
-                
+
                 # Execute tool calls
                 tool_results = self._execute_tool_calls(tool_calls)
-                
+
                 # Process and track tool calls for the structured response
                 for idx, tool_call in enumerate(tool_calls):
                     tool_name = tool_call["name"]
                     parameters = tool_call["input"]
-                    
+
                     # Find the corresponding result
                     result = None
                     for res in tool_results:
@@ -393,7 +393,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                                 break
                         if result:
                             break
-                    
+
                     # Add to processed tool calls
                     processed_tool_calls.append({
                         "name": tool_name,
@@ -405,7 +405,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 if tool_results:
                     for result in tool_results:
                         self.conversation_history.append(result)
-                    
+
                     logger.debug("Making follow-up API call with tool results")
 
                     # Make a follow-up API call with the tool results
@@ -437,7 +437,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                         block.text for block in follow_up_response.content if block.type == "text"
                     )
                     logger.debug(f"Follow-up response text length: {len(response_text)} chars")
-                    
+
                     # Return structured response
                     return {
                         "message": response_text,
@@ -448,7 +448,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     # No valid tool results were generated
                     error_msg = "Error: Failed to execute tool calls. Please try a different query."
                     logger.warning("No valid tool results were generated")
-                    
+
                     return {
                         "message": error_msg,
                         "tool_calls": processed_tool_calls,
@@ -529,27 +529,27 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         """
         Get structured JSON output from Claude based on the provided schema.
         Uses Claude's tool calling capabilities to enforce the output structure.
-        
+
         Args:
             prompt: The prompt describing what structured data to generate
             schema: JSON schema defining the structure of the response
             model: Optional alternative Claude model to use for this request
-            
+
         Returns:
             Dictionary containing the structured response that conforms to the schema
         """
         logger.info("Getting structured output from Claude")
-        
+
         # Use specified model or default to the agent's model
         model_to_use = model or self.model
-        
+
         # Create a temporary tool that defines the expected output structure
         structured_output_tool = {
             "name": "generate_structured_output",
             "description": "Generate a structured output response based on the provided schema",
             "input_schema": schema
         }
-        
+
         try:
             # Create a message to the Claude API
             response = await self.client.messages.create(
@@ -560,7 +560,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 tools=[structured_output_tool],
                 temperature=0
             )
-            
+
             # Process the response content
             if response.content:
                 for content in response.content:
@@ -582,11 +582,11 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                                 return structured_data
                         except (json.JSONDecodeError, AttributeError) as e:
                             logger.warning(f"Could not parse JSON from text response: {str(e)}")
-            
+
             # If no valid response found, log an error and return empty dict
             logger.error("No valid structured output found in Claude's response")
             return {}
-            
+
         except Exception as e:
             logger.error(f"Error getting structured output from Claude: {str(e)}")
             return {}
@@ -594,13 +594,13 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
     def _permission_request_callback(self, permission_request: PermissionRequest) -> PermissionStatus:
         """
         Implementation of permission request callback for Claude agent.
-        
+
         In a real application, this would interact with the user to get permission.
         For now, we'll default to a console-based interaction.
-        
+
         Args:
             permission_request: The permission request object
-            
+
         Returns:
             PermissionStatus indicating whether the request is granted or denied
         """
@@ -608,13 +608,13 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         if self.permission_manager.options.yolo_mode:
             logger.debug(f"Permission automatically granted in yolo mode for {permission_request.operation}")
             return PermissionStatus.GRANTED
-            
+
         # Default implementation asks on console
         logger.debug(f"Requesting permission for {permission_request.operation}")
         print(f"\n[PERMISSION REQUEST] {permission_request.operation}")
         print(f"Details: {json.dumps(permission_request.details, indent=2)}")
         response = input("Allow this operation? (y/n): ").strip().lower()
-        
+
         if response == 'y' or response == 'yes':
             logger.debug("Permission granted by user")
             return PermissionStatus.GRANTED
@@ -625,11 +625,11 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
     async def query_image(self, image_paths: List[str], query: str) -> str:
         """
         Query the Claude model about one or more images.
-        
+
         Args:
             image_paths: List of paths to local image files
             query: The query/question about the image(s)
-            
+
         Returns:
             The model's response about the image(s)
         """
@@ -638,19 +638,19 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
         import mimetypes
 
         logger.info(f"Processing image query with {len(image_paths)} images")
-        
+
         # Validate image paths
         for path in image_paths:
             if not os.path.exists(path):
                 error_msg = f"Image file not found: {path}"
                 logger.error(error_msg)
                 return error_msg
-        
+
         # Prepare images for the API
         content_blocks = [
             {"type": "text", "text": query}
         ]
-        
+
         for path in image_paths:
             try:
                 with open(path, "rb") as image_file:
@@ -659,11 +659,11 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     if not mime_type or not mime_type.startswith('image/'):
                         # Default to jpeg if type cannot be determined
                         mime_type = "image/jpeg"
-                    
+
                     # Read and encode the image
                     image_data = image_file.read()
                     encoded_image = base64.b64encode(image_data).decode('utf-8')
-                    
+
                     # Add image to content blocks
                     content_blocks.append({
                         "type": "image",
@@ -678,7 +678,7 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 error_msg = f"Error processing image {path}: {str(e)}"
                 logger.error(error_msg)
                 return error_msg
-        
+
         try:
             # Set up the system prompt for image analysis
 
@@ -686,10 +686,10 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                 image_system_prompt = "You are Claude, an AI assistant that can analyze and describe images. Provide detailed and accurate information about the images based on the user's query."
             else:
                 image_system_prompt = self.system_prompt
-            
+
             # Call the Claude API
             logger.debug(f"Calling Claude API for image analysis with model: {self.model}")
-            
+
             response = await self.client.messages.create(
                 model=self.model,
                 system=image_system_prompt,
@@ -702,21 +702,21 @@ This is the ONLY acceptable format for code citations. The format is ```startLin
                     }
                 ]
             )
-            
+
             # Extract and return the assistant's response
             if response.content and len(response.content) > 0:
                 result = ""
                 for content_block in response.content:
                     if content_block.type == "text":
                         result += content_block.text
-                
+
                 logger.info("Successfully processed image query")
                 return result
             else:
                 error_msg = "No response received from Claude API"
                 logger.error(error_msg)
                 return error_msg
-            
+
         except BadRequestError as e:
             error_msg = f"Bad request to Claude API: {str(e)}"
             logger.error(error_msg)

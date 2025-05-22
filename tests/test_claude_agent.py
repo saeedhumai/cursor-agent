@@ -51,11 +51,11 @@ class TestClaudeAgent(unittest.TestCase):
         # Set up a temporary directory
         self.test_dir = tempfile.mkdtemp()
         os.chdir(self.test_dir)
-        
+
         # Initialize agent
         self.agent_api_key = os.environ.get("ANTHROPIC_API_KEY") or "sk-ant-dummy"
         self.agent = ClaudeAgent(api_key=self.agent_api_key)
-        
+
         # Set up test files
         self.test_file_path = os.path.join(self.test_dir, "test_file.txt")
         create_test_file(self.test_file_path, "This is a test file.")
@@ -87,7 +87,7 @@ class TestClaudeAgent(unittest.TestCase):
                 "required": ["input"]
             }
         )
-        
+
         self.assertIn("test_tool", self.agent.available_tools)
         self.assertEqual(self.agent.available_tools["test_tool"]["schema"]["description"], "Test tool")
 
@@ -97,16 +97,16 @@ class TestClaudeAgent(unittest.TestCase):
         """Test the chat method returns a proper response"""
         if not self.agent_api_key or not is_real_api_key(self.agent_api_key, "anthropic"):
             self.skipTest("No valid Anthropic API key for live testing")
-            
+
         response = await self.agent.chat("What is the capital of France?")
-        
+
         # Check if it's the new structured response
         if isinstance(response, dict):
             assert "message" in response
             assert isinstance(response["message"], str)
             assert "tool_calls" in response
             assert "thinking" in response
-            
+
             # Check response content
             assert "Paris" in response["message"]
         else:
@@ -120,22 +120,22 @@ class TestClaudeAgent(unittest.TestCase):
         """Test chat with user info with real API."""
         if not self.agent_api_key or not is_real_api_key(self.agent_api_key, "anthropic"):
             self.skipTest("No valid Anthropic API key for live testing")
-            
+
         test_message = "What files do I have open?"
         user_info = {
             "open_files": ["test.py", "main.py"],
             "cursor_position": {"file": "test.py", "line": 10},
             "workspace_path": "/tmp/test"
         }
-        
+
         response = await self.agent.chat(test_message, user_info)
-        
+
         # Check if it's the new structured response
         if isinstance(response, dict):
             self.assertIn("message", response)
             self.assertIn("tool_calls", response)
             self.assertTrue(
-                "test.py" in response["message"] or 
+                "test.py" in response["message"] or
                 "main.py" in response["message"]
             )
         else:
@@ -151,13 +151,13 @@ class TestClaudeAgent(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
             tmp.write(b"This is a test file content.")
             self.test_file_path = tmp.name
-        
+
         # Register tools
         from cursor_agent_tools.tools.file_tools import read_file, list_directory
         self.agent.register_tool(
-            name="read_file", 
-            function=read_file, 
-            description="Read a file", 
+            name="read_file",
+            function=read_file,
+            description="Read a file",
             parameters={
                 "properties": {
                     "path": {"type": "string", "description": "Path to the file"}
@@ -166,9 +166,9 @@ class TestClaudeAgent(unittest.TestCase):
             }
         )
         self.agent.register_tool(
-            name="list_dir", 
-            function=list_directory, 
-            description="List directory contents", 
+            name="list_dir",
+            function=list_directory,
+            description="List directory contents",
             parameters={
                 "properties": {
                     "path": {"type": "string", "description": "Path to the directory"}
@@ -176,21 +176,21 @@ class TestClaudeAgent(unittest.TestCase):
                 "required": ["path"]
             }
         )
-        
+
         # Test file-related query
         response = await self.agent.chat(f"Read the file at {self.test_file_path}")
-        
+
         # Handle structured response
         if isinstance(response, dict):
             # Test if it's a valid AgentResponse
             self.assertIn("message", response)
             self.assertIn("tool_calls", response)
-            
+
             # Check message content
             message = response["message"]
             self.assertTrue(
-                "test file" in message.lower() or 
-                "read" in message.lower() or 
+                "test file" in message.lower() or
+                "read" in message.lower() or
                 "tool" in message.lower()
             )
         else:
@@ -198,8 +198,8 @@ class TestClaudeAgent(unittest.TestCase):
             self.assertIsInstance(response, str)
             # The response should either include the content or explain that tool usage is needed
             self.assertTrue(
-                "test file" in response.lower() or 
-                "read" in response.lower() or 
+                "test file" in response.lower() or
+                "read" in response.lower() or
                 "tool" in response.lower()
             )
 
