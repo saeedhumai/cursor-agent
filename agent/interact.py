@@ -425,7 +425,7 @@ First, I'll create a plan for how to approach this task, then implement it step 
             if on_user_info_update:
                 logger.info(f"Calling on_user_info_update callback with user_info: {user_info}")
                 try:
-                    on_user_info_update(user_info)
+                    await on_user_info_update(user_info)
                 except Exception as callback_error:
                     logger.warning(f"Error in on_user_info_update callback: {callback_error}")
 
@@ -518,7 +518,7 @@ First, I'll create a plan for how to approach this task, then implement it step 
 
                 logger.info(f"Calling on_iteration callback with iteration data: {iteration_data}")
                 try:
-                    on_iteration(iteration_data)
+                    await on_iteration(iteration_data)
                 except Exception as callback_error:
                     logger.warning(f"Error in on_iteration callback: {callback_error}")
 

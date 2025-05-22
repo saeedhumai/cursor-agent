@@ -125,24 +125,45 @@ class OllamaAgent(BaseAgent):
             models = ollama.list()
             available_models: List[str] = []
 
+            print(models)
+
             # Extract model names from response and handle model tags
             for model_info in models.models:
                 model_name = model_info.model
-                # Remove tag (e.g., ":latest") if present
-                if model_name and ":" in model_name:
-                    model_name = model_name.split(":")[0]
                 if model_name:
                     available_models.append(model_name)
+                    # Also store the model name without tag for family-based comparison
+                    if ":" in model_name:
+                        base_name = model_name.split(":")[0]
+                        if base_name not in available_models:
+                            available_models.append(base_name)
 
             if not available_models:
                 logger.warning("No models found in Ollama server. Please pull a model first.")
             else:
                 logger.debug(f"Available Ollama models: {', '.join(available_models)}")
 
-            # Check if our model is available
+            # Check if our model is available - first try exact match, then family match
             if self.model not in available_models:
-                logger.warning(f"Model '{self.model}' not found in available models. "
-                               f"You may need to pull it with 'ollama pull {self.model}'")
+                # If model has a tag, also try without tag
+                model_base = self.model.split(":")[0] if ":" in self.model else self.model
+                if model_base != self.model and model_base in available_models:
+                    logger.info(f"Model variant '{self.model}' not found, but base model '{model_base}' is available")
+                    self.model = model_base  # Use available base model instead
+                else:
+                    logger.warning(f"Model '{self.model}' not found in available models. "
+                                  f"You may need to pull it with 'ollama pull {self.model}'. "
+                                  f"Available models: {', '.join(available_models) if available_models else 'None'}")
+            else:
+                # Preload the model to get faster response times
+                logger.info(f"Preloading model '{self.model}' to improve response times")
+                try:
+                    # Send an empty request to preload the model
+                    ollama.chat(model=self.model, messages=[])
+                    logger.info(f"Successfully preloaded model '{self.model}'")
+                except Exception as e:
+                    logger.warning(f"Failed to preload model '{self.model}': {str(e)}")
+                    # Continue execution even if preloading fails
 
         except Exception as e:
             logger.error(f"Error checking Ollama server: {str(e)}")
