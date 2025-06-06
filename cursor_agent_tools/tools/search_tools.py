@@ -599,8 +599,14 @@ async def trend_search(
                 error_msg = "Google API keys are required for trend search. Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables."
                 logger.error(error_msg)
                 return {
-                    "error": error_msg,
-                    "trends": []
+                    "query": query,
+                    "category": category_name,
+                    "category_id": category_id,
+                    "country_code": country_code,
+                    "days": days,
+                    "trends": [],
+                    "total_trends": 0,
+                    "error": error_msg
                 }
 
             if not search_results or not search_results.get("results"):
@@ -661,7 +667,16 @@ async def trend_search(
 
     except Exception as error:
         logger.error(f"❌ Error in trend search: {str(error)}")
-        return {"error": str(error), "trends": []}
+        return {
+            "query": query,
+            "category": "Entertainment",  # Default category
+            "category_id": 4,
+            "country_code": country_code,
+            "days": days,
+            "trends": [],
+            "total_trends": 0,
+            "error": str(error)
+        }
 
 
 async def get_trending_topics(search_term: str, category: str, country_code: str = 'US', lookback_hours: int = 48, agent: Optional[Any] = None) -> List[str]:
