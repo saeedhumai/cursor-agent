@@ -387,52 +387,94 @@ def web_search(
 
 def google_search_sync(query: str, api_key: str, search_engine_id: str, max_results: int = 5) -> Dict[str, Dict[str, Any]]:
     """
-    Perform a search using Google Custom Search API synchronously.
+    Perform a search using Google Custom Search API synchronously with pagination support.
 
     Args:
         query: The search query
         api_key: Google API key
         search_engine_id: Google Search Engine ID
+        max_results: Maximum number of results to return (will paginate if > 10)
 
     Returns:
         Dictionary mapping URLs to search result data
     """
     try:
-        logger.info(f"Performing Google Custom Search for: {query}")
+        logger.info(f"Performing Google Custom Search for: {query} (max_results: {max_results})")
 
-        url = "https://www.googleapis.com/customsearch/v1"
-        params: Dict[str, str] = {
-            'key': api_key,
-            'cx': search_engine_id,
-            'q': query,
-            'num': str(max_results)  # Number of results as string
-        }
+        all_results = {}
+        results_collected = 0
+        start_index = 1  # Google API uses 1-based indexing
 
-        response = requests.get(url, params=params)
+        # Calculate how many API calls we need (max 10 results per call)
+        while results_collected < max_results:
+            # Calculate how many results to request in this call
+            results_needed = max_results - results_collected
+            results_per_call = min(10, results_needed)  # API limit is 10 per call
 
-        if response.status_code != 200:
-            logger.error(f"Google Search API error: {response.status_code}")
-            logger.error(f"Response: {response.text}")
-            return {}
+            logger.info(f"Making API call - start: {start_index}, num: {results_per_call}")
 
-        data = response.json()
+            url = "https://www.googleapis.com/customsearch/v1"
+            params: Dict[str, str] = {
+                'key': api_key,
+                'cx': search_engine_id,
+                'q': query,
+                'num': str(results_per_call),
+                'start': str(start_index)
+            }
 
-        # Process search results
-        results = {}
-        if 'items' in data:
-            for item in data['items']:
-                url = item.get('link')
-                if url:
-                    results[url] = {
-                        'title': item.get('title', ''),
-                        'snippet': item.get('snippet', '')
-                    }
+            response = requests.get(url, params=params)
+            logger.info(f"API Response Status: {response.status_code}")
 
-        logger.info(f"Found {len(results)} search results")
-        return results
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('items', [])
 
+                if not items:
+                    logger.info(f"No more results available. Collected {results_collected} results total.")
+                    break
+
+                logger.info(f"Retrieved {len(items)} results in this call")
+
+                # Process results from this call
+                for item in items:
+                    link = item.get('link', '')
+                    title = item.get('title', '')
+                    snippet = item.get('snippet', '')
+
+                    if link:
+                        all_results[link] = {
+                            'title': title,
+                            'snippet': snippet,
+                            'url': link
+                        }
+                        results_collected += 1
+
+                        # Stop if we've collected enough results
+                        if results_collected >= max_results:
+                            break
+
+                # Prepare for next API call
+                start_index += len(items)
+
+                # Check if we've reached the end of available results
+                total_results = data.get('searchInformation', {}).get('totalResults', '0')
+                if start_index > int(total_results):
+                    logger.info(f"Reached end of available results. Total available: {total_results}")
+                    break
+
+            else:
+                logger.error(f"Google Search API error: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                break
+
+        logger.info(f"Google Search completed. Total results collected: {len(all_results)}")
+        return all_results
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error during Google search: {e}")
+        return {}
     except Exception as e:
-        logger.error(f"Error in Google search: {str(e)}")
+        logger.error(f"Unexpected error during Google search: {e}")
         return {}
 
 

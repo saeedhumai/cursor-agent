@@ -32,10 +32,10 @@ long_description = re.sub(file_pattern, file_replacement, long_description)
 
 setup(
     name="cursor-agent-tools",
-    version="0.1.38",
+    version="0.1.39",
     author="Nifemi Alpine",
     author_email="hello@civai.co",
-    description="A Python-based AI agent that replicates Cursor's coding assistant capabilities",
+    description="Cursor Agent Tools - A Python-based AI agent that replicates Cursor's coding assistant capabilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/civai-technologies/cursor-agent",
